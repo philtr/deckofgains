@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, orientation=landscape">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Deck of Gains</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0 25px;
+            font-family: system-ui, Arial, sans-serif;
+            background-color: #f0f0f0;
+        }
+        #app {
+            text-align: center;
+            width: 100%;
+            max-width: 800px;
+        }
+        #drawn-cards {
+            display: grid;
+            gap: 10px;
+            margin-bottom: 20px;
+            grid-template-columns: repeat(2, 1fr);
+        }
+        .card {
+            font-size: 2rem;
+            padding: 15px;
+            background-color: white;
+            border: 2px solid #333;
+            border-radius: 10px;
+            text-align: center;
+        }
+        .red {
+            color: red;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+        @media only screen and (orientation: landscape) {
+            #drawn-cards {
+                grid-template-columns: repeat(4, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <h1>Deck of Gains</h1>
+        <div id="drawn-cards"></div>
+        <button id="draw-button" onclick="drawCards()">Draw Cards</button>
+        <div id="instructions"></div>
+    </div>
+    <script>
+        const exercises = {
+            'hearts': 'Jumping Jacks',
+            'spades': 'Squats',
+            'diamonds': 'Pushups',
+            'clubs': 'Cardio'
+        };
+
+        const suitSymbols = {
+            'hearts': '♥️',
+            'spades': '♠️',
+            'diamonds': '♦️',
+            'clubs': '♣️'
+        };
+
+        let roundCompleted = false;
+        let deck = [];
+
+        function initializeDeck() {
+            deck = [];
+            const suits = ['hearts', 'spades', 'diamonds', 'clubs'];
+            for (let suit of suits) {
+                for (let number = 1; number <= 13; number++) {
+                    deck.push({ suit, number });
+                }
+            }
+        }
+
+        function getCardValue(number) {
+            if (number >= 11) {
+                return 10; // Face cards are 10
+            } else if (number === 1) {
+                return 11; // Ace is 11
+            } else {
+                return number;
+            }
+        }
+
+        function drawCards() {
+            if (deck.length === 0) {
+                initializeDeck();
+            }
+
+            const drawnCardsDiv = document.getElementById("drawn-cards");
+            const instructionsDiv = document.getElementById("instructions");
+            const drawButton = document.getElementById("draw-button");
+            drawnCardsDiv.textContent = "";
+            instructionsDiv.textContent = "";
+
+            let cardCount = (deck.length <= 8) ? deck.length : (roundCompleted ? 4 : 4);
+            let cards = [];
+            for (let i = 0; i < cardCount; i++) {
+                const cardIndex = Math.floor(Math.random() * deck.length);
+                const card = deck.splice(cardIndex, 1)[0];
+                cards.push(card);
+            }
+
+            // Display drawn cards in a grid layout
+            cards.forEach(card => {
+                const cardElement = document.createElement("div");
+                cardElement.className = "card";
+                cardElement.innerHTML = `<span class="${card.suit === 'hearts' || card.suit === 'diamonds' ? 'red' : ''}">${getCardValue(card.number)} ${suitSymbols[card.suit]}</span>`;
+                drawnCardsDiv.appendChild(cardElement);
+            });
+
+            // Calculate total reps for each exercise
+            const totals = {
+                'Jumping Jacks': 0,
+                'Squats': 0,
+                'Pushups': 0,
+                'Cardio': 0
+            };
+
+            cards.forEach(card => {
+                const exercise = exercises[card.suit];
+                let reps = getCardValue(card.number);
+                if (card.suit === 'clubs') {
+                    reps *= 2;
+                }
+                totals[exercise] += reps;
+            });
+
+            // Generate combined exercise instructions
+            const exerciseInstructions = Object.entries(totals)
+                .filter(([, reps]) => reps > 0)
+                .map(([exercise, reps]) => `${exercise}: ${reps} reps`)
+                .join(' | ');
+
+            const instruction = document.createElement("p");
+            instruction.textContent = exerciseInstructions;
+            instructionsDiv.appendChild(instruction);
+
+            if (deck.length === 0) {
+                const sprintInstruction = document.createElement("p");
+                sprintInstruction.textContent = "Complete 2 sprints of 50 yards each.";
+                instructionsDiv.appendChild(sprintInstruction);
+
+                drawButton.style.display = "none";
+            } else {
+                const sprintInstruction = document.createElement("p");
+                sprintInstruction.textContent = "Complete a 50 yard sprint.";
+                instructionsDiv.appendChild(sprintInstruction);
+            }
+
+            roundCompleted = true;
+        }
+
+        // Initialize the deck on first load
+        initializeDeck();
+    </script>
+</body>
+</html>
