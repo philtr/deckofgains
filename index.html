@@ -57,7 +57,7 @@
 </head>
 <body>
     <div id="app">
-        <h1>💪 Deck of Gains 📈</h1>
+        <h1 id="round-title">💪 Deck of Gains 📈</h1>
         <div id="drawn-cards"></div>
         <button id="draw-button" onclick="drawCards()">Draw Cards</button>
         <div id="instructions"></div>
@@ -78,6 +78,8 @@
         };
 
         let roundCompleted = false;
+        let roundNumber = 1;
+        const totalRounds = 12;
         let deck = [];
 
         function initializeDeck() {
@@ -116,6 +118,7 @@
         }
 
         function drawCards() {
+            updateRoundTitle();
             if (deck.length === 0) {
                 initializeDeck();
             }
@@ -182,10 +185,16 @@
             }
 
             roundCompleted = true;
+            roundNumber++;
         }
 
         // Initialize the deck on first load
         initializeDeck();
+    
+        function updateRoundTitle() {
+            const roundTitle = document.getElementById("round-title");
+            roundTitle.textContent = `Round ${roundNumber} of ${totalRounds}`;
+        }
     </script>
 </body>
 </html>
