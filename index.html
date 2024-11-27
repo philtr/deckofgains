@@ -176,8 +176,13 @@
                 const sprintInstruction = document.createElement("p");
                 sprintInstruction.textContent = "Complete 2 sprints of 50 yards each.";
                 instructionsDiv.appendChild(sprintInstruction);
-
                 drawButton.style.display = "none";
+                const newSetButton = document.createElement("button");
+                newSetButton.textContent = "New Set";
+                newSetButton.onclick = function() {
+                    location.reload();
+                };
+                instructionsDiv.appendChild(newSetButton);
             } else {
                 const sprintInstruction = document.createElement("p");
                 sprintInstruction.textContent = "Complete a 50 yard sprint.";
