@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, orientation=landscape">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Black+Ops+One&display=swap" rel="stylesheet">
     <title>Deck of Gains</title>
     <style>
         body {
@@ -22,6 +25,14 @@
             text-align: center;
             width: 100%;
             max-width: 800px;
+        }
+        #round-title {
+          &::before {
+            content: "💪";
+          }
+          &::after {
+            content: "📈";
+          }
         }
         #drawn-cards {
             display: grid;
@@ -53,11 +64,51 @@
                 grid-template-columns: repeat(4, 1fr);
             }
         }
+
+        /* Rugged Theme Styles */
+        body.rugged {
+            color: #ffffff;
+            background-color: #4A574F;
+            background-image: linear-gradient(to bottom, #2a2a2a, #4A574F);
+            font-family: 'Black Ops One', sans-serif;
+            text-transform: uppercase;
+        }
+        #round-title.rugged {
+          &::before {
+            content: "🔥";
+          }
+          &::after {
+            content: "🔥";
+          }
+        }
+        .card.rugged {
+            font-size: 2.8rem;
+            padding: 25px;
+            background-color: #333;
+            border: 4px solid #ff4500;
+            color: #ffffff;
+            text-transform: uppercase;
+            box-shadow: 0 12px 24px rgba(0, 0, 0, 0.9);
+            transition: transform 0.2s;
+        }
+        .card.rugged:hover {
+            transform: scale(1.1);
+        }
+        button.rugged {
+            background-color: #ff4500;
+            color: #ffffff;
+            font-family: 'Black Ops One', sans-serif;
+            text-transform: uppercase;
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.7);
+            transition: background-color 0.3s;
+            border-radius: 5px;
+            border: 0;
+        }
     </style>
 </head>
-<body>
-    <div id="app">
-        <h1 id="round-title">💪 Deck of Gains 📈</h1>
+<body onload="applyRuggedTheme()">
+    <div id="app" class="">
+        <h1 id="round-title">Deck of Gains</h1>
         <div id="drawn-cards"></div>
         <button id="draw-button" onclick="drawCards()">Draw Cards</button>
         <div id="instructions"></div>
@@ -199,6 +250,16 @@
         function updateRoundTitle() {
             const roundTitle = document.getElementById("round-title");
             roundTitle.textContent = `Round ${roundNumber} of ${totalRounds}`;
+        }
+    function applyRuggedTheme() {
+            const params = new URLSearchParams(window.location.search);
+            if (params.get('rugged') === 'true') {
+                document.body.classList.add('rugged');
+                document.getElementById('app').classList.add('rugged');
+                document.getElementById('round-title').classList.add('rugged');
+                document.querySelectorAll('.card').forEach(card => card.classList.add('rugged'));
+                document.querySelectorAll('button').forEach(button => button.classList.add('rugged'));
+            }
         }
     </script>
 </body>
