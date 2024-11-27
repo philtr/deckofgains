@@ -85,6 +85,21 @@
             }
         }
 
+        function getCardDisplayValue(number) {
+            switch (number) {
+                case 1:
+                    return 'A';
+                case 11:
+                    return 'J';
+                case 12:
+                    return 'Q';
+                case 13:
+                    return 'K';
+                default:
+                    return number;
+            }
+        }
+
         function getCardValue(number) {
             if (number >= 11) {
                 return 10; // Face cards are 10
@@ -118,7 +133,7 @@
             cards.forEach(card => {
                 const cardElement = document.createElement("div");
                 cardElement.className = "card";
-                cardElement.innerHTML = `<span class="${card.suit === 'hearts' || card.suit === 'diamonds' ? 'red' : ''}">${getCardValue(card.number)} ${suitSymbols[card.suit]}</span>`;
+                cardElement.innerHTML = `<span class="${card.suit === 'hearts' || card.suit === 'diamonds' ? 'red' : ''}">${getCardDisplayValue(card.number)} ${suitSymbols[card.suit]}</span>`;
                 drawnCardsDiv.appendChild(cardElement);
             });
 
