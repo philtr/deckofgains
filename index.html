@@ -14,7 +14,9 @@
             height: 100vh;
             margin: 0 25px;
             font-family: system-ui, Arial, sans-serif;
-            background-color: #f0f0f0;
+            color: #FFFFFF;
+            background-color: #0B6623; /* Dark green to resemble a poker table */
+            background-image: radial-gradient(circle at center, #0E7C3A, #0B6623);
         }
         #app {
             text-align: center;
@@ -28,12 +30,15 @@
             grid-template-columns: repeat(2, 1fr);
         }
         .card {
+            color: #000000;
             font-size: 2rem;
+            font-weight: bold;
             padding: 15px;
             background-color: white;
             border: 2px solid #333;
             border-radius: 10px;
             text-align: center;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
         }
         .red {
             color: red;
@@ -52,7 +57,7 @@
 </head>
 <body>
     <div id="app">
-        <h1>Deck of Gains</h1>
+        <h1>💪 Deck of Gains 📈</h1>
         <div id="drawn-cards"></div>
         <button id="draw-button" onclick="drawCards()">Draw Cards</button>
         <div id="instructions"></div>
