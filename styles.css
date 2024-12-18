@@ -1,0 +1,92 @@
+body {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  margin: 0 25px;
+  font-family: system-ui, Arial, sans-serif;
+  color: #FFFFFF;
+  background-color: #0B6623; /* Dark green to resemble a poker table */
+  background-image: radial-gradient(circle at center, #0E7C3A, #0B6623);
+}
+#app {
+  text-align: center;
+  width: 100%;
+  max-width: 800px;
+}
+#round-title {
+  &::before {
+    content: "💪";
+  }
+  &::after {
+    content: "📈";
+  }
+}
+#drawn-cards {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 20px;
+  grid-template-columns: repeat(2, 1fr);
+}
+.card {
+  color: #000000;
+  font-size: 2rem;
+  font-weight: bold;
+  padding: 15px;
+  background-color: white;
+  border: 2px solid #333;
+  border-radius: 10px;
+  text-align: center;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+.red {
+  color: red;
+}
+button {
+  padding: 10px 20px;
+  font-size: 1.5rem;
+  cursor: pointer;
+}
+@media only screen and (orientation: landscape) {
+  #drawn-cards {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+/* Rugged Theme Styles */
+body.rugged {
+  color: #ffffff;
+  background-color: #4A574F;
+  background-image: linear-gradient(to bottom, #2a2a2a, #4A574F);
+  font-family: 'Black Ops One', sans-serif;
+  text-transform: uppercase;
+
+  #round-title {
+    font-weight: normal;
+    font-size: 1.75em;
+
+    &::before { content: "🔥"; }
+    &::after { content: "🔥"; }
+  }
+
+  .card {
+    font-size: 2.8rem;
+    font-weight: normal;
+    padding: 25px;
+    text-transform: uppercase;
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.9);
+    transition: transform 0.2s;
+  }
+
+  button {
+    background-color: #ff4500;
+    color: #ffffff;
+    font-family: 'Black Ops One', sans-serif;
+    font-weight: normal;
+    text-transform: uppercase;
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.7);
+    transition: background-color 0.3s;
+    border-radius: 5px;
+    border: 0;
+  }
+}
