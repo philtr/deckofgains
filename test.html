@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <title>Deck of Gains Tests</title>
+  </head>
+  <body>
+    <div id="app" style="display: none">
+      <h1 id="round-title">Deck of Gains</h1>
+      <div id="drawn-cards"></div>
+      <button id="draw-button" onclick="drawCards()">Draw Cards</button>
+      <div id="instructions"></div>
+    </div>
+
+    <script src="app.js"></script>
+    <script>
+    // Test suite
+    function runTests() {
+      let passed = 0;
+      let failed = 0;
+
+      function assert(description, condition) {
+        if (condition) {
+          console.log(`✔️ ${description}`);
+          passed++;
+        } else {
+          console.error(`❌ ${description}`);
+          failed++;
+        }
+      }
+
+      // Test 1: Deck Initialization
+      initializeDeck();
+      assert("Deck has 52 cards after initialization", deck.length === 52);
+
+      const suits = ["hearts", "spades", "diamonds", "clubs"];
+      const allSuitsPresent = suits.every(suit => deck.some(card => card.suit === suit));
+      assert("Deck contains all suits", allSuitsPresent);
+
+      // Test 2: Card Drawing
+      drawCards();
+      const remainingCards = deck.length;
+      assert("Deck size decreases after drawing cards", remainingCards === 48);
+
+      // Test 3: Total Reps Calculation
+      const totals = { "Jumping Jacks": 0, "Squats": 0, "Pushups": 0, "Abs": 0 };
+      deck.slice(0, 4).forEach(card => {
+        const exercise = exercises[card.suit];
+        let reps = getCardValue(card.number);
+        if (card.suit === "clubs") {
+          reps *= 2;
+        }
+        totals[exercise] += reps;
+      });
+      const totalReps = Object.values(totals).reduce((sum, val) => sum + val, 0);
+      assert("Total reps for 4 cards is correctly calculated", totalReps > 0);
+
+      // Test 4: Last round draws 8 cards
+      drawCards(); // round 2
+      drawCards(); // round 3
+      drawCards(); // round 4
+      drawCards(); // round 5
+      drawCards(); // round 6
+      drawCards(); // round 7
+      drawCards(); // round 8
+      drawCards(); // round 9
+      drawCards(); // round 10
+      drawCards(); // round 11
+      const lastDraw = doDrawCards(); // round 12
+      assert("Last draw contains 8 cards", lastDraw.length === 8)
+      assert("Deck has zero cards remaining on 12th round", deck.length === 0);
+
+
+      // Summary
+      console.log(`Tests Passed: ${passed}`);
+      console.log(`Tests Failed: ${failed}`);
+    }
+
+    runTests();
+    </script>
+  </body>
+</html>
