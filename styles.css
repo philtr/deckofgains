@@ -9,98 +9,23 @@ body {
   padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 32px);
   box-sizing: border-box;
   font-family: system-ui, Arial, sans-serif;
-  color: #ffffff;
-  background-color: #0b6623;
-  background-image: radial-gradient(circle at center, #0e7c3a, #0b6623);
+  color: #1f2933;
+  background-color: #f5f5f5;
+}
 
-  &[data-theme="rugged"] {
-    color: #ffffff;
-    background-color: #4a574f;
-    background-image: linear-gradient(to bottom, #2a2a2a, #4a574f);
-    font-family: 'Black Ops One', sans-serif;
-    text-transform: uppercase;
-
-    #round-title {
-      font-weight: normal;
-      font-size: 1.75em;
-
-      &::before {
-        content: "🔥";
-      }
-
-      &::after {
-        content: "🔥";
-      }
-    }
-
-    .card {
-      font-size: 2.8rem;
-      font-weight: normal;
-      padding: 25px;
-      text-transform: uppercase;
-      box-shadow: 0 12px 24px rgba(0, 0, 0, 0.9);
-      transition: transform 0.2s;
-    }
-
-    button {
-      background-color: #ff4500;
-      color: #ffffff;
-      font-family: 'Black Ops One', sans-serif;
-      font-weight: normal;
-      text-transform: uppercase;
-      box-shadow: 0 6px 12px rgba(0, 0, 0, 0.7);
-      transition: background-color 0.3s;
-      border-radius: 5px;
-      border: 0;
-    }
-
-    #configuration-screen {
-      background: rgba(0, 0, 0, 0.4);
-      border: 2px solid rgba(255, 69, 0, 0.65);
-    }
-
-    .configuration-section {
-      border-color: rgba(255, 255, 255, 0.35);
-      background: rgba(0, 0, 0, 0.35);
-    }
-
-    .multiplier-option {
-      background: rgba(255, 255, 255, 0.08);
-      border-color: rgba(255, 69, 0, 0.4);
-
-      select {
-        background: rgba(34, 34, 34, 0.85);
-        color: #ffffff;
-        border-color: rgba(255, 69, 0, 0.6);
-      }
-    }
-
-    .theme-option span {
-      color: #ffffff;
-    }
-
-    .mode-option {
-      background: rgba(255, 255, 255, 0.08);
-      border-color: rgba(255, 69, 0, 0.4);
-
-      .label-subtitle {
-        color: rgba(255, 255, 255, 0.75);
-      }
-
-      input[type="checkbox"] {
-        accent-color: #ff4500;
-      }
-    }
-  }
+#app {
+  text-align: center;
+  width: 100%;
+  max-width: 800px;
 }
 
 #configuration-screen {
   width: 100%;
   max-width: 720px;
-  background: rgba(0, 0, 0, 0.25);
+  background: #ffffff;
   border-radius: 16px;
   padding: 32px;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
   display: flex;
   flex-direction: column;
   gap: 24px;
@@ -109,7 +34,7 @@ body {
   .configuration-subtitle {
     margin: 0;
     font-size: 1.1rem;
-    opacity: 0.9;
+    color: #52606d;
   }
 
   #configuration-form {
@@ -119,17 +44,17 @@ body {
   }
 
   .configuration-section {
-    border: 1px solid rgba(255, 255, 255, 0.35);
+    border: 1px solid #e5e7eb;
     border-radius: 12px;
     padding: 16px 20px;
     text-align: left;
-    background: rgba(0, 0, 0, 0.1);
+    background: #f9fafb;
 
     legend {
       font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
+      letter-spacing: 0.04em;
       padding: 0 6px;
+      text-transform: uppercase;
     }
   }
 
@@ -143,8 +68,8 @@ body {
       display: flex;
       flex-direction: column;
       gap: 4px;
-      background: rgba(255, 255, 255, 0.15);
-      border: 1px solid rgba(255, 255, 255, 0.25);
+      background: #ffffff;
+      border: 1px solid #d1d5db;
       border-radius: 10px;
       padding: 16px;
       color: inherit;
@@ -155,7 +80,7 @@ body {
 
       .label-subtitle {
         font-size: 0.85rem;
-        opacity: 0.85;
+        color: #6b7280;
       }
 
       select {
@@ -163,7 +88,7 @@ body {
         padding: 10px 12px;
         font-size: 1rem;
         border-radius: 8px;
-        border: 1px solid rgba(0, 0, 0, 0.25);
+        border: 1px solid #cbd5f5;
         font-weight: 600;
       }
     }
@@ -188,9 +113,9 @@ body {
     gap: 16px;
     padding: 16px;
     margin-top: 12px;
-    border: 1px solid rgba(255, 255, 255, 0.25);
+    border: 1px solid #d1d5db;
     border-radius: 10px;
-    background: rgba(255, 255, 255, 0.15);
+    background: #ffffff;
     color: inherit;
 
     .mode-option-text {
@@ -198,28 +123,16 @@ body {
       flex-direction: column;
       gap: 4px;
     }
-
-    input[type="checkbox"] {
-      transform: scale(1.2);
-      accent-color: #f6f1a1;
-    }
   }
 }
 
-#app {
-  text-align: center;
-  width: 100%;
-  max-width: 800px;
+.mode-option input[type="checkbox"] {
+  transform: scale(1.2);
+  accent-color: #2563eb;
 }
 
 #round-title {
-  &::before {
-    content: "💪";
-  }
-
-  &::after {
-    content: "📈";
-  }
+  margin: 0;
 }
 
 #drawn-cards {
@@ -234,7 +147,7 @@ body {
   font-size: 2rem;
   font-weight: bold;
   padding: 15px;
-  background-color: white;
+  background-color: #ffffff;
   border: 2px solid #333;
   border-radius: 10px;
   text-align: center;
@@ -251,19 +164,171 @@ button {
   cursor: pointer;
   border-radius: 8px;
   border: none;
-  background: #f6f1a1;
-  color: #064420;
+  background: #2563eb;
+  color: #f8fafc;
   font-weight: 700;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 
   &:hover {
     transform: translateY(-1px);
-    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.2);
   }
 }
 
 @media only screen and (orientation: landscape) {
   #drawn-cards {
     grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+body[data-theme="casino"] {
+  color: #ffffff;
+  background-color: #0b6623;
+  background-image: radial-gradient(circle at center, #0e7c3a, #0b6623);
+
+  #round-title {
+    &::before {
+      content: "💪";
+    }
+
+    &::after {
+      content: "📈";
+    }
+  }
+
+  #configuration-screen {
+    background: rgba(0, 0, 0, 0.25);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+
+    .configuration-section {
+      border: 1px solid rgba(255, 255, 255, 0.35);
+      background: rgba(0, 0, 0, 0.1);
+    }
+
+    .multiplier-grid {
+      .multiplier-option {
+        background: rgba(255, 255, 255, 0.15);
+        border: 1px solid rgba(255, 255, 255, 0.25);
+
+        .label-subtitle {
+          color: rgba(255, 255, 255, 0.8);
+        }
+
+        select {
+          border: 1px solid rgba(0, 0, 0, 0.25);
+        }
+      }
+    }
+
+    .mode-option {
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      background: rgba(255, 255, 255, 0.15);
+
+      .label-subtitle {
+        color: rgba(255, 255, 255, 0.75);
+      }
+    }
+  }
+
+  .theme-option span {
+    color: #ffffff;
+  }
+
+  button {
+    background: #f6f1a1;
+    color: #064420;
+
+    &:hover {
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+    }
+  }
+
+  .mode-option input[type="checkbox"] {
+    accent-color: #f6f1a1;
+  }
+}
+
+body[data-theme="rugged"] {
+  color: #ffffff;
+  background-color: #4a574f;
+  background-image: linear-gradient(to bottom, #2a2a2a, #4a574f);
+  font-family: 'Black Ops One', sans-serif;
+  text-transform: uppercase;
+
+  #round-title {
+    font-weight: normal;
+    font-size: 1.75em;
+
+    &::before {
+      content: "🔥";
+    }
+
+    &::after {
+      content: "🔥";
+    }
+  }
+
+  .card {
+    font-size: 2.8rem;
+    font-weight: normal;
+    padding: 25px;
+    text-transform: uppercase;
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.9);
+    transition: transform 0.2s;
+  }
+
+  button {
+    background-color: #ff4500;
+    color: #ffffff;
+    font-family: 'Black Ops One', sans-serif;
+    font-weight: normal;
+    text-transform: uppercase;
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.7);
+    border-radius: 5px;
+    border: 0;
+
+    &:hover {
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
+    }
+  }
+
+  #configuration-screen {
+    background: rgba(0, 0, 0, 0.4);
+    border: 2px solid rgba(255, 69, 0, 0.65);
+
+    .configuration-section {
+      border-color: rgba(255, 255, 255, 0.35);
+      background: rgba(0, 0, 0, 0.35);
+    }
+
+    .multiplier-grid {
+      .multiplier-option {
+        background: rgba(255, 255, 255, 0.08);
+        border-color: rgba(255, 69, 0, 0.4);
+
+        select {
+          background: rgba(34, 34, 34, 0.85);
+          color: #ffffff;
+          border-color: rgba(255, 69, 0, 0.6);
+        }
+      }
+    }
+
+    .mode-option {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: rgba(255, 69, 0, 0.4);
+
+      .label-subtitle {
+        color: rgba(255, 255, 255, 0.75);
+      }
+    }
+  }
+
+  .theme-option span {
+    color: #ffffff;
+  }
+
+  .mode-option input[type="checkbox"] {
+    accent-color: #ff4500;
   }
 }
