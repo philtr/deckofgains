@@ -2,7 +2,7 @@ import {
   suits,
   defaultMultipliers,
   totalRounds,
-  defaultAutoDrawIntervalMinutes
+  defaultAutoDrawIntervalSeconds
 } from './constants.js';
 import { applyTheme, deriveInitialTheme, resolveTheme } from './theme.js';
 import { buildDeck, calculateTotals, createCardElement } from './deck.js';
@@ -27,8 +27,126 @@ import {
 } from './persistence.js';
 import { playDrawSound } from './audio.js';
 
+const DRAW_BUTTON_DEFAULT_LABEL = 'Draw Cards';
+
 let configurationListenersInitialized = false;
 let autoDrawTimeoutId = null;
+let autoDrawCountdownIntervalId = null;
+let autoDrawNextTriggerAt = null;
+
+function getAutoDrawIntervalElements() {
+  return {
+    container: document.getElementById('auto-draw-interval-container'),
+    minutesInput: document.getElementById('auto-draw-minutes'),
+    secondsInput: document.getElementById('auto-draw-seconds')
+  };
+}
+
+function updateAutoDrawIntervalVisibility(enabled) {
+  const { container } = getAutoDrawIntervalElements();
+  if (!container) {
+    return;
+  }
+
+  container.classList.toggle('is-hidden', !enabled);
+  if (enabled) {
+    container.style.removeProperty('display');
+  } else {
+    container.style.display = 'none';
+  }
+}
+
+function setAutoDrawIntervalInputs(totalSeconds) {
+  const { minutesInput, secondsInput } = getAutoDrawIntervalElements();
+  const safeSeconds = Number.isFinite(totalSeconds) && totalSeconds > 0
+    ? Math.round(totalSeconds)
+    : defaultAutoDrawIntervalSeconds;
+  const minutes = Math.floor(safeSeconds / 60);
+  const seconds = safeSeconds % 60;
+
+  if (minutesInput) {
+    minutesInput.value = String(minutes);
+  }
+  if (secondsInput) {
+    secondsInput.value = String(seconds);
+  }
+}
+
+function readAutoDrawIntervalFromInputs() {
+  const { minutesInput, secondsInput } = getAutoDrawIntervalElements();
+  if (!minutesInput || !secondsInput) {
+    return null;
+  }
+
+  const minutesValue = Number.parseInt(minutesInput.value, 10);
+  const secondsValue = Number.parseInt(secondsInput.value, 10);
+  const safeMinutes = Number.isFinite(minutesValue) && minutesValue >= 0 ? minutesValue : 0;
+  const safeSeconds = Number.isFinite(secondsValue) && secondsValue >= 0 ? Math.min(secondsValue, 59) : 0;
+  const total = safeMinutes * 60 + safeSeconds;
+  return total > 0 ? total : null;
+}
+
+function resetDrawButtonLabel() {
+  const button = document.getElementById('draw-button');
+  if (button) {
+    button.textContent = DRAW_BUTTON_DEFAULT_LABEL;
+  }
+}
+
+function updateDrawButtonLabel() {
+  const button = document.getElementById('draw-button');
+  if (!button) {
+    return;
+  }
+
+  if (!autoDrawNextTriggerAt) {
+    button.textContent = DRAW_BUTTON_DEFAULT_LABEL;
+    return;
+  }
+
+  const remainingMs = Math.max(0, autoDrawNextTriggerAt - Date.now());
+  const remainingSeconds = Math.max(0, Math.ceil(remainingMs / 1000));
+  const minutes = Math.floor(remainingSeconds / 60);
+  const seconds = remainingSeconds % 60;
+  const paddedSeconds = String(seconds).padStart(2, '0');
+  button.textContent = `${DRAW_BUTTON_DEFAULT_LABEL} (${minutes}:${paddedSeconds})`;
+}
+
+function stopAutoDrawCountdown({ preserveLabel = false } = {}) {
+  if (autoDrawCountdownIntervalId !== null) {
+    window.clearInterval(autoDrawCountdownIntervalId);
+    autoDrawCountdownIntervalId = null;
+  }
+
+  autoDrawNextTriggerAt = null;
+
+  if (!preserveLabel) {
+    resetDrawButtonLabel();
+  }
+}
+
+function startAutoDrawCountdown(deadline) {
+  stopAutoDrawCountdown({ preserveLabel: true });
+
+  autoDrawNextTriggerAt = deadline;
+  updateDrawButtonLabel();
+
+  const tick = () => {
+    if (!autoDrawNextTriggerAt) {
+      stopAutoDrawCountdown();
+      return;
+    }
+
+    updateDrawButtonLabel();
+
+    if (autoDrawNextTriggerAt - Date.now() <= 0) {
+      // Allow the timeout handler to reset the label after the draw.
+      updateDrawButtonLabel();
+    }
+  };
+
+  autoDrawCountdownIntervalId = window.setInterval(tick, 250);
+}
 
 function populateConfigurationForm(state) {
   const { configuration } = state;
@@ -51,15 +169,14 @@ function populateConfigurationForm(state) {
   }
 
   const autoDrawToggle = document.getElementById('auto-draw-enabled');
+  const autoDrawEnabled = Boolean(configuration.autoDraw?.enabled);
   if (autoDrawToggle) {
-    autoDrawToggle.checked = Boolean(configuration.autoDraw?.enabled);
+    autoDrawToggle.checked = autoDrawEnabled;
   }
 
-  const autoDrawIntervalInput = document.getElementById('auto-draw-interval');
-  if (autoDrawIntervalInput) {
-    const value = configuration.autoDraw?.intervalMinutes ?? defaultAutoDrawIntervalMinutes;
-    autoDrawIntervalInput.value = String(value);
-  }
+  const intervalSeconds = configuration.autoDraw?.intervalSeconds ?? defaultAutoDrawIntervalSeconds;
+  setAutoDrawIntervalInputs(intervalSeconds);
+  updateAutoDrawIntervalVisibility(autoDrawEnabled);
 }
 
 function showConfigurationScreen() {
@@ -122,41 +239,51 @@ function ensureConfigurationListeners() {
   const autoDrawToggle = document.getElementById('auto-draw-enabled');
   if (autoDrawToggle) {
     autoDrawToggle.addEventListener('change', event => {
+      const intervalSeconds = readAutoDrawIntervalFromInputs();
       updateConfiguration({
-        autoDraw: { enabled: event.target.checked }
+        autoDraw: {
+          enabled: event.target.checked,
+          intervalSeconds: intervalSeconds ?? defaultAutoDrawIntervalSeconds
+        }
       });
+      updateAutoDrawIntervalVisibility(event.target.checked);
+      populateConfigurationForm(getState());
     });
   }
 
-  const autoDrawIntervalInput = document.getElementById('auto-draw-interval');
-  if (autoDrawIntervalInput) {
-    autoDrawIntervalInput.addEventListener('change', event => {
-      const numeric = Number.parseFloat(event.target.value);
-      updateConfiguration({
-        autoDraw: {
-          intervalMinutes: Number.isFinite(numeric) && numeric > 0
-            ? numeric
-            : defaultAutoDrawIntervalMinutes
+  const { minutesInput, secondsInput } = getAutoDrawIntervalElements();
+  const handleIntervalChange = () => {
+    const intervalSeconds = readAutoDrawIntervalFromInputs();
+    updateConfiguration({
+      autoDraw: {
+        intervalSeconds: intervalSeconds ?? defaultAutoDrawIntervalSeconds
+      }
+    });
+    populateConfigurationForm(getState());
+  };
+
+  if (minutesInput && secondsInput) {
+    [minutesInput, secondsInput].forEach(input => {
+      input.addEventListener('change', handleIntervalChange);
+      input.addEventListener('blur', () => {
+        const intervalSeconds = readAutoDrawIntervalFromInputs();
+        if (!intervalSeconds) {
+          populateConfigurationForm(getState());
         }
       });
-      populateConfigurationForm(getState());
-    });
-    autoDrawIntervalInput.addEventListener('blur', event => {
-      const numeric = Number.parseFloat(event.target.value);
-      if (!Number.isFinite(numeric) || numeric <= 0) {
-        populateConfigurationForm(getState());
-      }
     });
   }
 
   configurationListenersInitialized = true;
 }
 
-function clearAutoDrawTimer() {
+function clearAutoDrawTimer({ preserveCountdownLabel = false } = {}) {
   if (autoDrawTimeoutId !== null) {
     window.clearTimeout(autoDrawTimeoutId);
     autoDrawTimeoutId = null;
   }
+
+  stopAutoDrawCountdown({ preserveLabel: preserveCountdownLabel });
 }
 
 function shouldContinueAutoDraw(state) {
@@ -169,8 +296,8 @@ function shouldContinueAutoDraw(state) {
     return false;
   }
 
-  const intervalMinutes = Number.parseFloat(autoDraw.intervalMinutes);
-  if (!Number.isFinite(intervalMinutes) || intervalMinutes <= 0) {
+  const intervalSeconds = Number.parseInt(autoDraw.intervalSeconds, 10);
+  if (!Number.isFinite(intervalSeconds) || intervalSeconds <= 0) {
     return false;
   }
 
@@ -182,17 +309,20 @@ function shouldContinueAutoDraw(state) {
 }
 
 function scheduleAutoDraw(state) {
-  clearAutoDrawTimer();
+  const canContinue = shouldContinueAutoDraw(state);
+  clearAutoDrawTimer({ preserveCountdownLabel: canContinue });
 
-  if (!shouldContinueAutoDraw(state)) {
+  if (!canContinue) {
     return;
   }
 
-  const intervalMinutes = Number.parseFloat(state.configuration.autoDraw.intervalMinutes);
-  const intervalMs = intervalMinutes * 60 * 1000;
+  const intervalSeconds = Number.parseInt(state.configuration.autoDraw.intervalSeconds, 10);
+  const intervalMs = intervalSeconds * 1000;
+  const deadline = Date.now() + intervalMs;
 
   autoDrawTimeoutId = window.setTimeout(() => {
     autoDrawTimeoutId = null;
+    stopAutoDrawCountdown({ preserveLabel: true });
     const currentState = getState();
     if (!shouldContinueAutoDraw(currentState)) {
       clearAutoDrawTimer();
@@ -200,6 +330,8 @@ function scheduleAutoDraw(state) {
     }
     drawCards();
   }, intervalMs);
+
+  startAutoDrawCountdown(deadline);
 }
 
 function ensureAutoDrawTimer(state) {
@@ -302,6 +434,12 @@ function renderWorkoutFromState(state) {
     } else {
       drawButton.style.display = '';
     }
+
+    if (!autoDrawNextTriggerAt) {
+      drawButton.textContent = DRAW_BUTTON_DEFAULT_LABEL;
+    } else {
+      updateDrawButtonLabel();
+    }
   }
 }
 
@@ -353,13 +491,14 @@ export function doDrawCards() {
 export function drawCards() {
   updateRoundTitle();
 
+  let drawnCards = [];
   suppressNotifications(() => {
     const stateBeforeDraw = getState();
-    doDrawCards();
+    drawnCards = doDrawCards();
     const newRoundNumber = stateBeforeDraw.roundNumber + 1;
     setRoundCompleted(true);
     setRoundNumber(newRoundNumber);
-    playDrawSound(stateBeforeDraw.configuration.theme);
+    playDrawSound({ count: drawnCards.length });
   });
 
   serializeAndRenderState();
@@ -367,6 +506,7 @@ export function drawCards() {
 }
 
 export function startWorkout() {
+  const stateSnapshot = getState();
   const multipliers = { ...defaultMultipliers };
   suits.forEach(suit => {
     const select = document.getElementById(`multiplier-${suit}`);
@@ -377,13 +517,22 @@ export function startWorkout() {
   });
 
   const selectedThemeInput = document.querySelector('input[name="theme"]:checked');
-  const themeCandidate = selectedThemeInput ? selectedThemeInput.value : getState().configuration.theme;
+  const themeCandidate = selectedThemeInput ? selectedThemeInput.value : stateSnapshot.configuration.theme;
   const theme = applyTheme(themeCandidate);
 
   const endlessToggle = document.getElementById('endless-mode');
-  const endless = endlessToggle ? endlessToggle.checked : getState().configuration.endless;
+  const endless = endlessToggle ? endlessToggle.checked : stateSnapshot.configuration.endless;
   const autoDrawToggle = document.getElementById('auto-draw-enabled');
-  const autoDrawIntervalInput = document.getElementById('auto-draw-interval');
+  const autoDrawMinutesInput = document.getElementById('auto-draw-minutes');
+  const autoDrawSecondsInput = document.getElementById('auto-draw-seconds');
+
+  const minutesValue = autoDrawMinutesInput ? Number.parseInt(autoDrawMinutesInput.value, 10) : NaN;
+  const secondsValue = autoDrawSecondsInput ? Number.parseInt(autoDrawSecondsInput.value, 10) : NaN;
+  const normalizedMinutes = Number.isFinite(minutesValue) && minutesValue >= 0 ? minutesValue : 0;
+  const normalizedSeconds = Number.isFinite(secondsValue) && secondsValue >= 0 ? Math.min(secondsValue, 59) : 0;
+  const computedIntervalSeconds = normalizedMinutes * 60 + normalizedSeconds;
+  const fallbackIntervalSeconds = stateSnapshot.configuration.autoDraw.intervalSeconds ?? defaultAutoDrawIntervalSeconds;
+  const intervalSeconds = computedIntervalSeconds > 0 ? computedIntervalSeconds : fallbackIntervalSeconds;
 
   clearAutoDrawTimer();
 
@@ -394,15 +543,11 @@ export function startWorkout() {
     setRoundCompleted(false);
     setLastDrawn([]);
     setStarted(true);
-    const autoDrawEnabled = autoDrawToggle ? autoDrawToggle.checked : getState().configuration.autoDraw.enabled;
-    const rawInterval = autoDrawIntervalInput ? Number.parseFloat(autoDrawIntervalInput.value) : NaN;
-    const intervalMinutes = Number.isFinite(rawInterval) && rawInterval > 0
-      ? rawInterval
-      : getState().configuration.autoDraw.intervalMinutes;
+    const autoDrawEnabled = autoDrawToggle ? autoDrawToggle.checked : stateSnapshot.configuration.autoDraw.enabled;
     updateConfiguration({
       autoDraw: {
         enabled: autoDrawEnabled,
-        intervalMinutes
+        intervalSeconds
       }
     });
   });
@@ -428,7 +573,7 @@ function handleRestoredState(restored) {
         theme,
         autoDraw: restored.configuration?.autoDraw ?? {
           enabled: false,
-          intervalMinutes: defaultAutoDrawIntervalMinutes
+          intervalSeconds: defaultAutoDrawIntervalSeconds
         }
       }
     },
@@ -464,7 +609,7 @@ export function initializeApp() {
         theme,
         autoDraw: persisted.configuration?.autoDraw ?? {
           enabled: false,
-          intervalMinutes: defaultAutoDrawIntervalMinutes
+          intervalSeconds: defaultAutoDrawIntervalSeconds
         }
       }
     },

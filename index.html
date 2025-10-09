@@ -87,10 +87,6 @@
               <span class="label-subtitle">Keep cycling through the deck without stopping.</span>
             </span>
           </label>
-        </fieldset>
-
-        <fieldset class="configuration-section">
-          <legend>Auto-Draw</legend>
           <label class="mode-option" for="auto-draw-enabled">
             <input type="checkbox" id="auto-draw-enabled">
             <span class="mode-option-text">
@@ -98,13 +94,22 @@
               <span class="label-subtitle">Automatically draw the next hand after the timer expires.</span>
             </span>
           </label>
-          <label class="mode-option auto-draw-interval-option" for="auto-draw-interval">
-            <span class="mode-option-text">
-              <span class="label-title">Interval (minutes)</span>
-              <span class="label-subtitle">Default is 2.5 minutes.</span>
-            </span>
-            <input type="number" id="auto-draw-interval" min="0.01" step="0.01" value="2.5">
-          </label>
+          <div class="mode-option auto-draw-interval-option is-hidden" id="auto-draw-interval-container">
+            <div class="mode-option-text">
+              <span class="label-title">Auto-Draw Interval</span>
+              <span class="label-subtitle">Default is 2 minutes 30 seconds.</span>
+            </div>
+            <div class="auto-draw-interval-inputs">
+              <label class="auto-draw-interval-field" for="auto-draw-minutes">
+                <span class="input-label">Minutes</span>
+                <input type="number" id="auto-draw-minutes" min="0" step="1" value="2" inputmode="numeric">
+              </label>
+              <label class="auto-draw-interval-field" for="auto-draw-seconds">
+                <span class="input-label">Seconds</span>
+                <input type="number" id="auto-draw-seconds" min="0" max="59" step="1" value="30" inputmode="numeric">
+              </label>
+            </div>
+          </div>
         </fieldset>
 
         <button type="button" id="start-workout" onclick="startWorkout()">Start Workout</button>

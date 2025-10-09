@@ -35,8 +35,9 @@ Activate the **Rugged Theme** and prove you’re ready to enter the tribe of leg
 6. Your configuration *and* active workout are mirrored in the URL, so refreshing the page or sharing the link drops you—and your unsuspecting friends—right back into the current round. Suits are shortened to `h/s/d/c` codes to keep those links lean.
 
 ## Auto-Draw & Sound FX 🎧
-- Toggle **Auto-Draw** from the configuration screen to automatically draw the next hand for you. It defaults to 2.5 minutes between draws, but you can dial the interval up or down to fit your rest window.
-- Each draw fires off a quick audio cue so you never miss the next hand. The classic casino theme delivers a slick "whoosh" while Rugged mode punches in with a heavy hit.
+- Toggle **Auto-Draw** from the configuration screen to automatically draw the next hand for you. The controls live inside the **Mode** section and the interval picker only appears when auto-draw is enabled, letting you set minutes and seconds (defaulting to 2 minutes 30 seconds) without fussing over decimals.
+- A live countdown appears on the **Draw Cards** button whenever auto-draw is active, so you know exactly when the next hand will hit.
+- Every draw now rides the same clean **whoosh** sound effect. Pull four cards and you'll hear four whooshes; pull eight and the audio ramps up to match.
 
 ## Why This Exists 🤔
 Because working out should be fun. Or at least unpredictable. Or, at the very least, rugged.

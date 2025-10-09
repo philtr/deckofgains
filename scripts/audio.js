@@ -31,7 +31,7 @@ function resumeIfSuspended(ctx) {
   }
 }
 
-function playWhoosh(ctx) {
+function playWhoosh(ctx, when = ctx.currentTime) {
   const duration = 0.45;
   const buffer = ctx.createBuffer(1, ctx.sampleRate * duration, ctx.sampleRate);
   const data = buffer.getChannelData(0);
@@ -56,32 +56,17 @@ function playWhoosh(ctx) {
   filter.connect(gain);
   gain.connect(ctx.destination);
 
-  source.start();
-  source.stop(ctx.currentTime + duration);
+  const startTime = Math.max(when, ctx.currentTime);
+  source.start(startTime);
+  source.stop(startTime + duration);
 }
 
-function playPunch(ctx) {
-  const duration = 0.3;
-  const oscillator = ctx.createOscillator();
-  oscillator.type = 'square';
-  oscillator.frequency.setValueAtTime(160, ctx.currentTime);
-  oscillator.frequency.exponentialRampToValueAtTime(60, ctx.currentTime + duration);
+export function playDrawSound(options = {}) {
+  const countCandidate = typeof options === 'number' ? options : options?.count;
+  const plays = Number.isFinite(countCandidate) ? Math.max(0, Math.round(countCandidate)) : 0;
 
-  const gain = ctx.createGain();
-  gain.gain.setValueAtTime(0.0001, ctx.currentTime);
-  gain.gain.exponentialRampToValueAtTime(0.7, ctx.currentTime + 0.02);
-  gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + duration);
-
-  oscillator.connect(gain);
-  gain.connect(ctx.destination);
-
-  oscillator.start();
-  oscillator.stop(ctx.currentTime + duration);
-}
-
-export function playDrawSound(theme) {
-  const effect = theme === 'rugged' ? 'punch' : 'whoosh';
-  window.__deckOfGainsLastSound = effect;
+  window.__deckOfGainsLastSound = 'whoosh';
+  window.__deckOfGainsLastSoundPlayCount = plays;
 
   const ctx = getAudioContext();
   if (!ctx) {
@@ -91,10 +76,11 @@ export function playDrawSound(theme) {
   resumeIfSuspended(ctx);
 
   try {
-    if (effect === 'punch') {
-      playPunch(ctx);
-    } else {
-      playWhoosh(ctx);
+    const baseTime = ctx.currentTime;
+    const spacingSeconds = 0.08;
+    for (let i = 0; i < plays; i += 1) {
+      const when = baseTime + i * spacingSeconds;
+      playWhoosh(ctx, when);
     }
   } catch (error) {
     // Audio playback errors should not interrupt gameplay.
