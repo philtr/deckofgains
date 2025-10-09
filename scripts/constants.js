@@ -38,4 +38,4 @@ export const supportedThemes = new Set([defaultTheme, 'rugged']);
 
 export const totalRounds = 12;
 
-export const defaultAutoDrawIntervalMinutes = 2.5;
+export const defaultAutoDrawIntervalSeconds = 150;

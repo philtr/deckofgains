@@ -80,8 +80,11 @@ async function startWorkoutWithOptions(
     await page.check('#auto-draw-enabled');
   }
 
-  if (autoDraw?.intervalMinutes !== undefined) {
-    await page.fill('#auto-draw-interval', String(autoDraw.intervalMinutes));
+  if (autoDraw?.intervalSeconds !== undefined) {
+    const minutes = Math.floor(autoDraw.intervalSeconds / 60);
+    const seconds = Math.max(0, Math.round(autoDraw.intervalSeconds - minutes * 60));
+    await page.fill('#auto-draw-minutes', String(minutes));
+    await page.fill('#auto-draw-seconds', String(seconds));
   }
 
   await page.click('#start-workout');
@@ -128,9 +131,15 @@ test.describe('Deck of Gains app', () => {
     await expect(page.locator('#multiplier-clubs')).toHaveValue('2');
   });
 
-  test('auto draw controls default to disabled with a 2.5 minute interval', async ({ page }) => {
+  test('auto draw controls default to disabled with a 2 minute 30 second interval', async ({ page }) => {
+    const intervalContainer = page.locator('.auto-draw-interval-option');
     await expect(page.locator('#auto-draw-enabled')).not.toBeChecked();
-    await expect(page.locator('#auto-draw-interval')).toHaveValue('2.5');
+    await expect(intervalContainer).toBeHidden();
+
+    await page.check('#auto-draw-enabled');
+    await expect(intervalContainer).toBeVisible();
+    await expect(page.locator('#auto-draw-minutes')).toHaveValue('2');
+    await expect(page.locator('#auto-draw-seconds')).toHaveValue('30');
   });
 
   test('builds a unique 52 card deck when initializeDeck runs', async ({ page }) => {
@@ -325,7 +334,7 @@ test.describe('Deck of Gains app', () => {
     await startWorkoutWithOptions(page, {
       theme: 'casino',
       multipliers: { hearts: 1, spades: 1, diamonds: 1, clubs: 1 },
-      autoDraw: { enabled: true, intervalMinutes: 0.01 }
+      autoDraw: { enabled: true, intervalSeconds: 1 }
     });
 
     await setDeck(page, [
@@ -353,6 +362,22 @@ test.describe('Deck of Gains app', () => {
     expect(state.roundNumber).toBe(2);
     expect(state.roundCompleted).toBe(true);
     expect(state.autoDrawEnabled).toBe(true);
+  });
+
+  test('auto draw countdown is displayed on the draw button while waiting', async ({ page }) => {
+    await startWorkoutWithOptions(page, {
+      theme: 'casino',
+      multipliers: { hearts: 1, spades: 1, diamonds: 1, clubs: 1 },
+      autoDraw: { enabled: true, intervalSeconds: 3 }
+    });
+
+    await page.waitForFunction(() => {
+      const button = document.getElementById('draw-button');
+      return button && /Draw Cards \(\d+:\d{2}\)/.test(button.textContent);
+    });
+
+    const buttonText = await page.locator('#draw-button').textContent();
+    expect(buttonText).toMatch(/Draw Cards \(\d+:\d{2}\)/);
   });
 
   test('drawCards updates the UI, totals, and round state', async ({ page }) => {
@@ -399,6 +424,83 @@ test.describe('Deck of Gains app', () => {
     expect(state.roundCompleted).toBe(true);
     expect(state.roundNumber).toBe(2);
     expect(state.drawButtonDisplay).not.toBe('none');
+  });
+
+  test('drawing four cards plays the whoosh sound four times', async ({ page }) => {
+    await startWorkoutWithOptions(page, {
+      theme: 'rugged',
+      multipliers: { hearts: 1, spades: 1, diamonds: 1, clubs: 1 }
+    });
+
+    await setDeck(page, [
+      { suit: 'hearts', number: 1 },
+      { suit: 'spades', number: 2 },
+      { suit: 'diamonds', number: 3 },
+      { suit: 'clubs', number: 4 },
+      { suit: 'hearts', number: 5 },
+      { suit: 'spades', number: 6 },
+      { suit: 'diamonds', number: 7 },
+      { suit: 'clubs', number: 8 },
+      { suit: 'hearts', number: 9 }
+    ]);
+
+    await page.evaluate(() => {
+      roundCompleted = false;
+      window.__deckOfGainsLastSound = undefined;
+      window.__deckOfGainsLastSoundPlayCount = 0;
+    });
+
+    await withPatchedRandom(page, 0, async () => {
+      await page.evaluate(() => {
+        drawCards();
+      });
+    });
+
+    const soundState = await page.evaluate(() => ({
+      effect: window.__deckOfGainsLastSound,
+      count: window.__deckOfGainsLastSoundPlayCount
+    }));
+
+    expect(soundState.effect).toBe('whoosh');
+    expect(soundState.count).toBe(4);
+  });
+
+  test('drawing eight cards plays the whoosh sound eight times', async ({ page }) => {
+    await startWorkoutWithOptions(page, {
+      theme: 'casino',
+      multipliers: { hearts: 1, spades: 1, diamonds: 1, clubs: 1 }
+    });
+
+    await setDeck(page, [
+      { suit: 'hearts', number: 1 },
+      { suit: 'spades', number: 2 },
+      { suit: 'diamonds', number: 3 },
+      { suit: 'clubs', number: 4 },
+      { suit: 'hearts', number: 5 },
+      { suit: 'spades', number: 6 },
+      { suit: 'diamonds', number: 7 },
+      { suit: 'clubs', number: 8 }
+    ]);
+
+    await page.evaluate(() => {
+      roundCompleted = false;
+      window.__deckOfGainsLastSound = undefined;
+      window.__deckOfGainsLastSoundPlayCount = 0;
+    });
+
+    await withPatchedRandom(page, 0, async () => {
+      await page.evaluate(() => {
+        drawCards();
+      });
+    });
+
+    const soundState = await page.evaluate(() => ({
+      effect: window.__deckOfGainsLastSound,
+      count: window.__deckOfGainsLastSoundPlayCount
+    }));
+
+    expect(soundState.effect).toBe('whoosh');
+    expect(soundState.count).toBe(8);
   });
 
   test('respects configured multipliers when calculating totals', async ({ page }) => {
@@ -595,175 +697,100 @@ test.describe('Deck of Gains app', () => {
     expect(restoredState.configuration.multipliers).toEqual({ hearts: 2, spades: 3, diamonds: 4, clubs: 5 });
   });
 
-  test('drawCards plays theme-specific sound effects', async ({ page }) => {
-    await page.evaluate(() => {
-      class StubAudioContext {
-        constructor() {
-          this.sampleRate = 44100;
-          this.currentTime = 0;
-          this.destination = {};
+  test('drawCards always plays the whoosh sound regardless of theme', async ({ page }) => {
+    const themes = ['casino', 'rugged'];
+
+    for (const theme of themes) {
+      await page.goto(baseUrl);
+
+      await page.evaluate(() => {
+        class StubAudioContext {
+          constructor() {
+            this.sampleRate = 44100;
+            this.currentTime = 0;
+            this.destination = {};
+          }
+
+          resume() {
+            return Promise.resolve();
+          }
+
+          createBuffer(channels, frameCount) {
+            return {
+              getChannelData() {
+                return new Float32Array(frameCount * channels);
+              }
+            };
+          }
+
+          createBufferSource() {
+            return {
+              connect() {},
+              start() {},
+              stop() {},
+              playbackRate: { setValueAtTime() {} }
+            };
+          }
+
+          createGain() {
+            return {
+              connect() {},
+              gain: {
+                setValueAtTime() {},
+                linearRampToValueAtTime() {},
+                exponentialRampToValueAtTime() {}
+              }
+            };
+          }
+
+          createBiquadFilter() {
+            return {
+              connect() {},
+              type: '',
+              frequency: { setValueAtTime() {} }
+            };
+          }
         }
 
-        resume() {
-          return Promise.resolve();
-        }
+        window.AudioContext = StubAudioContext;
+        window.webkitAudioContext = StubAudioContext;
+      });
 
-        createBuffer(channels, frameCount) {
-          return {
-            getChannelData() {
-              return new Float32Array(frameCount * channels);
-            }
-          };
-        }
+      await startWorkoutWithOptions(page, {
+        theme,
+        multipliers: { hearts: 1, spades: 1, diamonds: 1, clubs: 1 }
+      });
 
-        createBufferSource() {
-          return {
-            connect() {},
-            start() {},
-            stop() {},
-            playbackRate: { setValueAtTime() {} }
-          };
-        }
+      await setDeck(page, [
+        { suit: 'hearts', number: 1 },
+        { suit: 'spades', number: 2 },
+        { suit: 'diamonds', number: 3 },
+        { suit: 'clubs', number: 4 },
+        { suit: 'hearts', number: 5 },
+        { suit: 'spades', number: 6 },
+        { suit: 'diamonds', number: 7 },
+        { suit: 'clubs', number: 8 }
+      ]);
 
-        createGain() {
-          return {
-            connect() {},
-            gain: {
-              setValueAtTime() {},
-              linearRampToValueAtTime() {},
-              exponentialRampToValueAtTime() {}
-            }
-          };
-        }
+      await page.evaluate(() => {
+        roundCompleted = false;
+        window.__deckOfGainsLastSound = undefined;
+        window.__deckOfGainsLastSoundPlayCount = 0;
+      });
 
-        createBiquadFilter() {
-          return {
-            connect() {},
-            type: '',
-            frequency: { setValueAtTime() {} }
-          };
-        }
+      await withPatchedRandom(page, 0, async () => {
+        await page.evaluate(() => {
+          drawCards();
+        });
+      });
 
-        createOscillator() {
-          return {
-            connect() {},
-            start() {},
-            stop() {},
-            frequency: {
-              setValueAtTime() {},
-              exponentialRampToValueAtTime() {}
-            },
-            type: 'sine'
-          };
-        }
-      }
+      const soundState = await page.evaluate(() => ({
+        sound: window.__deckOfGainsLastSound,
+        count: window.__deckOfGainsLastSoundPlayCount
+      }));
 
-      window.AudioContext = StubAudioContext;
-      window.webkitAudioContext = StubAudioContext;
-    });
-
-    await startWorkoutWithOptions(page, {
-      theme: 'casino',
-      multipliers: { hearts: 1, spades: 1, diamonds: 1, clubs: 1 }
-    });
-
-    await setDeck(page, [
-      { suit: 'hearts', number: 1 },
-      { suit: 'spades', number: 2 },
-      { suit: 'diamonds', number: 3 },
-      { suit: 'clubs', number: 4 }
-    ]);
-
-    await withPatchedRandom(page, 0, async () => {
-      await page.click('#draw-button');
-    });
-
-    await page.waitForFunction(() => window.__deckOfGainsLastSound === 'whoosh');
-
-    await page.goto(baseUrl);
-
-    await page.evaluate(() => {
-      class StubAudioContext {
-        constructor() {
-          this.sampleRate = 44100;
-          this.currentTime = 0;
-          this.destination = {};
-        }
-
-        resume() {
-          return Promise.resolve();
-        }
-
-        createBuffer(channels, frameCount) {
-          return {
-            getChannelData() {
-              return new Float32Array(frameCount * channels);
-            }
-          };
-        }
-
-        createBufferSource() {
-          return {
-            connect() {},
-            start() {},
-            stop() {},
-            playbackRate: { setValueAtTime() {} }
-          };
-        }
-
-        createGain() {
-          return {
-            connect() {},
-            gain: {
-              setValueAtTime() {},
-              linearRampToValueAtTime() {},
-              exponentialRampToValueAtTime() {}
-            }
-          };
-        }
-
-        createBiquadFilter() {
-          return {
-            connect() {},
-            type: '',
-            frequency: { setValueAtTime() {} }
-          };
-        }
-
-        createOscillator() {
-          return {
-            connect() {},
-            start() {},
-            stop() {},
-            frequency: {
-              setValueAtTime() {},
-              exponentialRampToValueAtTime() {}
-            },
-            type: 'sine'
-          };
-        }
-      }
-
-      window.AudioContext = StubAudioContext;
-      window.webkitAudioContext = StubAudioContext;
-    });
-
-    await startWorkoutWithOptions(page, {
-      theme: 'rugged',
-      multipliers: { hearts: 1, spades: 1, diamonds: 1, clubs: 1 }
-    });
-
-    await setDeck(page, [
-      { suit: 'hearts', number: 5 },
-      { suit: 'spades', number: 6 },
-      { suit: 'diamonds', number: 7 },
-      { suit: 'clubs', number: 8 }
-    ]);
-
-    await withPatchedRandom(page, 0, async () => {
-      await page.click('#draw-button');
-    });
-
-    await page.waitForFunction(() => window.__deckOfGainsLastSound === 'punch');
+      expect(soundState.sound).toBe('whoosh');
+      expect(soundState.count).toBeGreaterThan(0);
+    }
   });
 });

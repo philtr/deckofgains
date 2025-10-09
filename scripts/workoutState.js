@@ -1,7 +1,7 @@
 import {
   defaultMultipliers,
   defaultTheme,
-  defaultAutoDrawIntervalMinutes
+  defaultAutoDrawIntervalSeconds
 } from './constants.js';
 
 const state = {
@@ -11,7 +11,7 @@ const state = {
     endless: false,
     autoDraw: {
       enabled: false,
-      intervalMinutes: defaultAutoDrawIntervalMinutes
+      intervalSeconds: defaultAutoDrawIntervalSeconds
     }
   },
   deck: [],
@@ -41,23 +41,38 @@ function normalizeMultipliers(candidate = {}) {
   }, {});
 }
 
+function coerceIntervalSeconds(value, { isMinutes = false } = {}) {
+  if (value == null) {
+    return null;
+  }
+
+  const numeric = Number.parseFloat(value);
+  if (!Number.isFinite(numeric) || numeric <= 0) {
+    return null;
+  }
+
+  const seconds = isMinutes ? numeric * 60 : numeric;
+  return Math.round(seconds);
+}
+
 function sanitizeAutoDraw(partial = {}) {
   const previous = state.configuration.autoDraw ?? {
     enabled: false,
-    intervalMinutes: defaultAutoDrawIntervalMinutes
+    intervalSeconds: defaultAutoDrawIntervalSeconds
   };
 
   const enabled = partial.enabled !== undefined ? Boolean(partial.enabled) : Boolean(previous.enabled);
-  const rawInterval =
-    partial.intervalMinutes !== undefined
-      ? partial.intervalMinutes
-      : previous.intervalMinutes ?? defaultAutoDrawIntervalMinutes;
-  const numeric = Number.parseFloat(rawInterval);
-  const intervalMinutes = Number.isFinite(numeric) && numeric > 0 ? numeric : defaultAutoDrawIntervalMinutes;
+  const candidateSeconds = [
+    coerceIntervalSeconds(partial.intervalSeconds),
+    coerceIntervalSeconds(partial.intervalMinutes, { isMinutes: true }),
+    coerceIntervalSeconds(previous.intervalSeconds),
+    coerceIntervalSeconds(previous.intervalMinutes, { isMinutes: true })
+  ].find(value => typeof value === 'number' && Number.isFinite(value) && value > 0);
+  const intervalSeconds = candidateSeconds ?? defaultAutoDrawIntervalSeconds;
 
   return {
     enabled,
-    intervalMinutes
+    intervalSeconds
   };
 }
 

@@ -3,7 +3,7 @@ import {
   defaultMultipliers,
   suitCodes,
   suitLookupByCode,
-  defaultAutoDrawIntervalMinutes
+  defaultAutoDrawIntervalSeconds
 } from './constants.js';
 import { resolveTheme } from './theme.js';
 
@@ -12,6 +12,36 @@ const MULTIPLIER_SEPARATOR = '.';
 const MULTIPLIER_PAIR_SEPARATOR = '-';
 
 let lastSerialized = null;
+
+function formatMinutesFromSeconds(seconds) {
+  if (!Number.isFinite(seconds)) {
+    return null;
+  }
+
+  const minutes = seconds / 60;
+  const rounded = Math.round(minutes * 100) / 100;
+  return Number(rounded.toFixed(2)).toString();
+}
+
+function resolveIntervalSecondsFromParams(params) {
+  const secondsParam = params.get('autoIntervalSeconds');
+  if (secondsParam !== null) {
+    const parsedSeconds = Number.parseInt(secondsParam, 10);
+    if (Number.isFinite(parsedSeconds) && parsedSeconds > 0) {
+      return parsedSeconds;
+    }
+  }
+
+  const legacyParam = params.get('autoInterval');
+  if (legacyParam !== null) {
+    const numeric = Number.parseFloat(legacyParam);
+    if (Number.isFinite(numeric) && numeric > 0) {
+      return Math.max(1, Math.round(numeric * 60));
+    }
+  }
+
+  return defaultAutoDrawIntervalSeconds;
+}
 
 function encodeSuit(suit) {
   return suitCodes[suit] ?? suit;
@@ -120,9 +150,13 @@ export function serializeState(state) {
     params.set('auto', '1');
   }
 
-  const autoInterval = Number.parseFloat(state?.configuration?.autoDraw?.intervalMinutes);
-  if (Number.isFinite(autoInterval) && autoInterval > 0) {
-    params.set('autoInterval', String(autoInterval));
+  const autoIntervalSeconds = Number.parseInt(state?.configuration?.autoDraw?.intervalSeconds, 10);
+  if (Number.isFinite(autoIntervalSeconds) && autoIntervalSeconds > 0) {
+    params.set('autoIntervalSeconds', String(autoIntervalSeconds));
+    const minutesValue = formatMinutesFromSeconds(autoIntervalSeconds);
+    if (minutesValue) {
+      params.set('autoInterval', minutesValue);
+    }
   }
 
   const multipliers = encodeMultipliers(state?.configuration?.multipliers ?? defaultMultipliers);
@@ -150,10 +184,7 @@ export function deserializeState(searchParams) {
     multipliers: decodeMultipliers(params.get('multipliers')) ?? defaultMultipliers,
     autoDraw: {
       enabled: params.get('auto') === '1',
-      intervalMinutes: (() => {
-        const numeric = Number.parseFloat(params.get('autoInterval'));
-        return Number.isFinite(numeric) && numeric > 0 ? numeric : defaultAutoDrawIntervalMinutes;
-      })()
+      intervalSeconds: resolveIntervalSecondsFromParams(params)
     }
   };
 
