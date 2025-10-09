@@ -21,11 +21,59 @@ const defaultMultipliers = {
   clubs: 2
 };
 
+const defaultTheme = 'casino';
+const supportedThemes = new Set([defaultTheme, 'rugged']);
+const themeClassMap = {
+  rugged: 'rugged'
+};
+
 let configuration = {
   multipliers: { ...defaultMultipliers },
-  theme: 'casino',
+  theme: defaultTheme,
   endless: false
 };
+
+function resolveTheme(themeCandidate) {
+  const normalized = (themeCandidate ?? '').toLowerCase();
+  return supportedThemes.has(normalized) ? normalized : defaultTheme;
+}
+
+function deriveInitialTheme() {
+  const params = new URLSearchParams(window.location.search);
+  const themeParam = params.get('theme');
+  if (themeParam) {
+    const normalized = (themeParam ?? '').toLowerCase();
+    if (supportedThemes.has(normalized)) {
+      return normalized;
+    }
+  }
+
+  if (params.get('rugged') === 'true') {
+    return 'rugged';
+  }
+
+  return defaultTheme;
+}
+
+function applyTheme(themeCandidate) {
+  const theme = resolveTheme(themeCandidate);
+  document.body.dataset.theme = theme;
+
+  Object.values(themeClassMap).forEach(cls => {
+    document.body.classList.remove(cls);
+  });
+
+  const themeClass = themeClassMap[theme];
+  if (themeClass) {
+    document.body.classList.add(themeClass);
+  }
+}
+
+function setTheme(themeCandidate) {
+  const theme = resolveTheme(themeCandidate);
+  configuration.theme = theme;
+  applyTheme(theme);
+}
 
 let roundCompleted = false;
 let roundNumber = 1;
@@ -34,13 +82,12 @@ let deck = [];
 
 function onThemeChange(event) {
   const selectedTheme = event?.target?.value || configuration.theme;
-  configuration.theme = selectedTheme;
-  applyTheme(selectedTheme);
+  setTheme(selectedTheme);
 }
 
 function initializeApp() {
-  applyRuggedTheme();
-  configuration.theme = document.body.classList.contains('rugged') ? 'rugged' : 'casino';
+  const initialTheme = deriveInitialTheme();
+  setTheme(initialTheme);
   configuration.multipliers = { ...defaultMultipliers };
   configuration.endless = false;
   initializeConfigurationScreen();
@@ -181,15 +228,6 @@ function updateRoundTitle() {
   roundTitle.textContent = configuration.endless ? baseRoundLabel : `${baseRoundLabel} of ${totalRounds}`;
 }
 
-function applyRuggedTheme() {
-  const params = new URLSearchParams(window.location.search);
-  if (params.get('rugged') === 'true') {
-    document.body.classList.add('rugged');
-  } else {
-    document.body.classList.remove('rugged');
-  }
-}
-
 function initializeConfigurationScreen() {
   const configurationScreen = document.getElementById('configuration-screen');
   const appContainer = document.getElementById('app');
@@ -208,7 +246,7 @@ function initializeConfigurationScreen() {
     }
   });
 
-  const selectedTheme = document.body.classList.contains('rugged') ? 'rugged' : configuration.theme;
+  const selectedTheme = resolveTheme(configuration.theme);
   configuration.theme = selectedTheme;
   const themeInput = document.querySelector(`input[name="theme"][value="${selectedTheme}"]`);
   if (themeInput) {
@@ -224,14 +262,6 @@ function initializeConfigurationScreen() {
   themeInputs.forEach(input => {
     input.addEventListener('change', onThemeChange);
   });
-}
-
-function applyTheme(theme) {
-  if (theme === 'rugged') {
-    document.body.classList.add('rugged');
-  } else {
-    document.body.classList.remove('rugged');
-  }
 }
 
 function startWorkout() {
@@ -258,7 +288,7 @@ function startWorkout() {
     endless
   };
 
-  applyTheme(theme);
+  setTheme(theme);
 
   if (configurationScreen) {
     configurationScreen.style.display = 'none';

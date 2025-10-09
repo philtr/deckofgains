@@ -16,7 +16,7 @@ Welcome to **Deck of Gains**, the app that turns a deck of cards into your perso
 5. When the deck is done, it’s BURPEE TIME. Keep going until your soul leaves your body (or the clock says 30 minutes, whichever comes first).
 
 ## The Rugged Theme 🪓🔥
-You think you’re hardcore? You’re not rugged enough until you hit **Deck of Gains** with the `?rugged=true` query param. This mode transforms the app into something that looks like it crawled out of a Viking gym. 
+You think you’re hardcore? You’re not rugged enough until you hit **Deck of Gains** with the `?theme=rugged` query param (the classic `?rugged=true` link still works for your old bookmarks). This mode transforms the app into something that looks like it crawled out of a Viking gym.
 
 Here’s what the **Rugged Theme** brings:
 - A dark, smoky background to remind you of the battlefield of gains.
@@ -31,7 +31,7 @@ Activate the **Rugged Theme** and prove you’re ready to enter the tribe of leg
 2. **Add to Home Screen** for a full-screen experience (especially on iOS).
 3. Hit "Draw Cards" and let the pain begin.
 4. Once the deck is done, hit "New Set" to start over—or collapse in glory.
-5. Want to go **RUGGED**? Add `?rugged=true` to the URL and watch the screen turn into a warrior’s playground.
+5. Want to go **RUGGED**? Add `?theme=rugged` to the URL (or the legacy `?rugged=true`) and watch the screen turn into a warrior’s playground.
 
 ## Why This Exists 🤔
 Because working out should be fun. Or at least unpredictable. Or, at the very least, rugged.
