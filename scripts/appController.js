@@ -139,7 +139,10 @@ export function updateRoundTitle() {
   }
 
   const state = getState();
-  const baseRoundLabel = `Round ${state.roundNumber}`;
+  const activeRoundNumber = state.roundCompleted
+    ? Math.max(1, state.roundNumber - 1)
+    : state.roundNumber;
+  const baseRoundLabel = `Round ${activeRoundNumber}`;
   roundTitle.textContent = state.configuration.endless
     ? baseRoundLabel
     : `${baseRoundLabel} of ${totalRounds}`;

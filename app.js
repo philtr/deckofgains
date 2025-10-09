@@ -16,3 +16,13 @@ window.initializeDeck = initializeDeck;
 window.updateRoundTitle = updateRoundTitle;
 window.getCardDisplayValue = getCardDisplayValue;
 window.getCardValue = getCardValue;
+
+function boot() {
+  initializeApp();
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', boot, { once: true });
+} else {
+  boot();
+}

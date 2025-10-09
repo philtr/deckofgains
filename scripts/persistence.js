@@ -1,4 +1,4 @@
-import { suits, defaultMultipliers } from './constants.js';
+import { suits, defaultMultipliers, suitCodes, suitLookupByCode } from './constants.js';
 import { resolveTheme } from './theme.js';
 
 const CARD_SEPARATOR = '.';
@@ -7,20 +7,41 @@ const MULTIPLIER_PAIR_SEPARATOR = '-';
 
 let lastSerialized = null;
 
+function encodeSuit(suit) {
+  return suitCodes[suit] ?? suit;
+}
+
+function decodeSuit(token) {
+  if (!token) {
+    return null;
+  }
+  if (suitLookupByCode[token]) {
+    return suitLookupByCode[token];
+  }
+  if (suits.includes(token)) {
+    return token;
+  }
+  return null;
+}
+
 function encodeCard(card) {
   if (!card || !card.suit) {
     return null;
   }
-  return `${card.suit}-${card.number}`;
+  if (!suits.includes(card.suit)) {
+    return null;
+  }
+  return `${encodeSuit(card.suit)}-${card.number}`;
 }
 
 function decodeCard(token) {
   if (!token) {
     return null;
   }
-  const [suit, rawNumber] = token.split('-');
+  const [rawSuit, rawNumber] = token.split('-');
   const number = Number.parseInt(rawNumber, 10);
-  if (!suits.includes(suit) || !Number.isFinite(number)) {
+  const suit = decodeSuit(rawSuit);
+  if (!suit || !Number.isFinite(number)) {
     return null;
   }
   return { suit, number };
@@ -55,7 +76,7 @@ function encodeMultipliers(multipliers = {}) {
       const value = Number.parseInt(multipliers[suit], 10);
       const fallback = defaultMultipliers[suit];
       const numeric = Number.isFinite(value) ? value : fallback;
-      return `${suit}${MULTIPLIER_PAIR_SEPARATOR}${numeric}`;
+      return `${encodeSuit(suit)}${MULTIPLIER_PAIR_SEPARATOR}${numeric}`;
     })
     .join(MULTIPLIER_SEPARATOR);
 }
@@ -66,12 +87,13 @@ function decodeMultipliers(serialized) {
   }
 
   return serialized.split(MULTIPLIER_SEPARATOR).reduce((acc, part) => {
-    const [suit, rawValue] = part.split(MULTIPLIER_PAIR_SEPARATOR);
+    const [rawSuit, rawValue] = part.split(MULTIPLIER_PAIR_SEPARATOR);
+    const suit = decodeSuit(rawSuit);
     if (!suit) {
       return acc;
     }
     const numeric = Number.parseInt(rawValue, 10);
-    if (suits.includes(suit) && Number.isFinite(numeric)) {
+    if (Number.isFinite(numeric)) {
       acc[suit] = numeric;
     }
     return acc;
