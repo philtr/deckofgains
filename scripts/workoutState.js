@@ -1,10 +1,18 @@
-import { defaultMultipliers, defaultTheme } from './constants.js';
+import {
+  defaultMultipliers,
+  defaultTheme,
+  defaultAutoDrawIntervalMinutes
+} from './constants.js';
 
 const state = {
   configuration: {
     multipliers: { ...defaultMultipliers },
     theme: defaultTheme,
-    endless: false
+    endless: false,
+    autoDraw: {
+      enabled: false,
+      intervalMinutes: defaultAutoDrawIntervalMinutes
+    }
   },
   deck: [],
   roundNumber: 1,
@@ -33,6 +41,26 @@ function normalizeMultipliers(candidate = {}) {
   }, {});
 }
 
+function sanitizeAutoDraw(partial = {}) {
+  const previous = state.configuration.autoDraw ?? {
+    enabled: false,
+    intervalMinutes: defaultAutoDrawIntervalMinutes
+  };
+
+  const enabled = partial.enabled !== undefined ? Boolean(partial.enabled) : Boolean(previous.enabled);
+  const rawInterval =
+    partial.intervalMinutes !== undefined
+      ? partial.intervalMinutes
+      : previous.intervalMinutes ?? defaultAutoDrawIntervalMinutes;
+  const numeric = Number.parseFloat(rawInterval);
+  const intervalMinutes = Number.isFinite(numeric) && numeric > 0 ? numeric : defaultAutoDrawIntervalMinutes;
+
+  return {
+    enabled,
+    intervalMinutes
+  };
+}
+
 function sanitizeConfiguration(partial = {}) {
   const multipliers = partial.multipliers
     ? normalizeMultipliers({ ...state.configuration.multipliers, ...partial.multipliers })
@@ -40,11 +68,16 @@ function sanitizeConfiguration(partial = {}) {
 
   const theme = partial.theme !== undefined ? partial.theme : state.configuration.theme;
   const endless = partial.endless !== undefined ? Boolean(partial.endless) : state.configuration.endless;
+  const autoDraw =
+    partial.autoDraw !== undefined
+      ? sanitizeAutoDraw({ ...state.configuration.autoDraw, ...partial.autoDraw })
+      : sanitizeAutoDraw(state.configuration.autoDraw);
 
   return {
     multipliers,
     theme: theme ?? defaultTheme,
-    endless
+    endless,
+    autoDraw
   };
 }
 
@@ -86,7 +119,8 @@ export function getState() {
     configuration: {
       multipliers: { ...state.configuration.multipliers },
       theme: state.configuration.theme,
-      endless: state.configuration.endless
+      endless: state.configuration.endless,
+      autoDraw: { ...state.configuration.autoDraw }
     },
     deck: cloneDeck(state.deck),
     roundNumber: state.roundNumber,

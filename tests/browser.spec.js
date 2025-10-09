@@ -58,7 +58,10 @@ test.afterAll(async () => {
   }
 });
 
-async function startWorkoutWithOptions(page, { theme = 'casino', multipliers, endless = false } = {}) {
+async function startWorkoutWithOptions(
+  page,
+  { theme = 'casino', multipliers, endless = false, autoDraw } = {}
+) {
   if (multipliers) {
     for (const [suit, value] of Object.entries(multipliers)) {
       await page.selectOption(`#multiplier-${suit}`, String(value));
@@ -71,6 +74,14 @@ async function startWorkoutWithOptions(page, { theme = 'casino', multipliers, en
 
   if (endless) {
     await page.check('#endless-mode');
+  }
+
+  if (autoDraw?.enabled) {
+    await page.check('#auto-draw-enabled');
+  }
+
+  if (autoDraw?.intervalMinutes !== undefined) {
+    await page.fill('#auto-draw-interval', String(autoDraw.intervalMinutes));
   }
 
   await page.click('#start-workout');
@@ -115,6 +126,11 @@ test.describe('Deck of Gains app', () => {
     await expect(page.locator('#multiplier-spades')).toHaveValue('1');
     await expect(page.locator('#multiplier-diamonds')).toHaveValue('1');
     await expect(page.locator('#multiplier-clubs')).toHaveValue('2');
+  });
+
+  test('auto draw controls default to disabled with a 2.5 minute interval', async ({ page }) => {
+    await expect(page.locator('#auto-draw-enabled')).not.toBeChecked();
+    await expect(page.locator('#auto-draw-interval')).toHaveValue('2.5');
   });
 
   test('builds a unique 52 card deck when initializeDeck runs', async ({ page }) => {
@@ -303,6 +319,40 @@ test.describe('Deck of Gains app', () => {
       'clubs-5'
     ]);
     expect(result.remaining).toBe(4);
+  });
+
+  test('auto draw automatically draws the next hand after the configured interval', async ({ page }) => {
+    await startWorkoutWithOptions(page, {
+      theme: 'casino',
+      multipliers: { hearts: 1, spades: 1, diamonds: 1, clubs: 1 },
+      autoDraw: { enabled: true, intervalMinutes: 0.01 }
+    });
+
+    await setDeck(page, [
+      { suit: 'hearts', number: 1 },
+      { suit: 'spades', number: 2 },
+      { suit: 'diamonds', number: 3 },
+      { suit: 'clubs', number: 4 },
+      { suit: 'hearts', number: 5 },
+      { suit: 'spades', number: 6 },
+      { suit: 'diamonds', number: 7 },
+      { suit: 'clubs', number: 8 },
+      { suit: 'hearts', number: 9 }
+    ]);
+
+    await page.waitForFunction(() => {
+      return document.querySelectorAll('#drawn-cards .card').length === 4;
+    });
+
+    const state = await page.evaluate(() => ({
+      roundNumber,
+      roundCompleted,
+      autoDrawEnabled: configuration.autoDraw?.enabled ?? false
+    }));
+
+    expect(state.roundNumber).toBe(2);
+    expect(state.roundCompleted).toBe(true);
+    expect(state.autoDrawEnabled).toBe(true);
   });
 
   test('drawCards updates the UI, totals, and round state', async ({ page }) => {
@@ -543,5 +593,177 @@ test.describe('Deck of Gains app', () => {
     expect(restoredState.configuration.theme).toBe('rugged');
     expect(restoredState.configuration.endless).toBe(false);
     expect(restoredState.configuration.multipliers).toEqual({ hearts: 2, spades: 3, diamonds: 4, clubs: 5 });
+  });
+
+  test('drawCards plays theme-specific sound effects', async ({ page }) => {
+    await page.evaluate(() => {
+      class StubAudioContext {
+        constructor() {
+          this.sampleRate = 44100;
+          this.currentTime = 0;
+          this.destination = {};
+        }
+
+        resume() {
+          return Promise.resolve();
+        }
+
+        createBuffer(channels, frameCount) {
+          return {
+            getChannelData() {
+              return new Float32Array(frameCount * channels);
+            }
+          };
+        }
+
+        createBufferSource() {
+          return {
+            connect() {},
+            start() {},
+            stop() {},
+            playbackRate: { setValueAtTime() {} }
+          };
+        }
+
+        createGain() {
+          return {
+            connect() {},
+            gain: {
+              setValueAtTime() {},
+              linearRampToValueAtTime() {},
+              exponentialRampToValueAtTime() {}
+            }
+          };
+        }
+
+        createBiquadFilter() {
+          return {
+            connect() {},
+            type: '',
+            frequency: { setValueAtTime() {} }
+          };
+        }
+
+        createOscillator() {
+          return {
+            connect() {},
+            start() {},
+            stop() {},
+            frequency: {
+              setValueAtTime() {},
+              exponentialRampToValueAtTime() {}
+            },
+            type: 'sine'
+          };
+        }
+      }
+
+      window.AudioContext = StubAudioContext;
+      window.webkitAudioContext = StubAudioContext;
+    });
+
+    await startWorkoutWithOptions(page, {
+      theme: 'casino',
+      multipliers: { hearts: 1, spades: 1, diamonds: 1, clubs: 1 }
+    });
+
+    await setDeck(page, [
+      { suit: 'hearts', number: 1 },
+      { suit: 'spades', number: 2 },
+      { suit: 'diamonds', number: 3 },
+      { suit: 'clubs', number: 4 }
+    ]);
+
+    await withPatchedRandom(page, 0, async () => {
+      await page.click('#draw-button');
+    });
+
+    await page.waitForFunction(() => window.__deckOfGainsLastSound === 'whoosh');
+
+    await page.goto(baseUrl);
+
+    await page.evaluate(() => {
+      class StubAudioContext {
+        constructor() {
+          this.sampleRate = 44100;
+          this.currentTime = 0;
+          this.destination = {};
+        }
+
+        resume() {
+          return Promise.resolve();
+        }
+
+        createBuffer(channels, frameCount) {
+          return {
+            getChannelData() {
+              return new Float32Array(frameCount * channels);
+            }
+          };
+        }
+
+        createBufferSource() {
+          return {
+            connect() {},
+            start() {},
+            stop() {},
+            playbackRate: { setValueAtTime() {} }
+          };
+        }
+
+        createGain() {
+          return {
+            connect() {},
+            gain: {
+              setValueAtTime() {},
+              linearRampToValueAtTime() {},
+              exponentialRampToValueAtTime() {}
+            }
+          };
+        }
+
+        createBiquadFilter() {
+          return {
+            connect() {},
+            type: '',
+            frequency: { setValueAtTime() {} }
+          };
+        }
+
+        createOscillator() {
+          return {
+            connect() {},
+            start() {},
+            stop() {},
+            frequency: {
+              setValueAtTime() {},
+              exponentialRampToValueAtTime() {}
+            },
+            type: 'sine'
+          };
+        }
+      }
+
+      window.AudioContext = StubAudioContext;
+      window.webkitAudioContext = StubAudioContext;
+    });
+
+    await startWorkoutWithOptions(page, {
+      theme: 'rugged',
+      multipliers: { hearts: 1, spades: 1, diamonds: 1, clubs: 1 }
+    });
+
+    await setDeck(page, [
+      { suit: 'hearts', number: 5 },
+      { suit: 'spades', number: 6 },
+      { suit: 'diamonds', number: 7 },
+      { suit: 'clubs', number: 8 }
+    ]);
+
+    await withPatchedRandom(page, 0, async () => {
+      await page.click('#draw-button');
+    });
+
+    await page.waitForFunction(() => window.__deckOfGainsLastSound === 'punch');
   });
 });

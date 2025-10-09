@@ -1,4 +1,10 @@
-import { suits, defaultMultipliers, suitCodes, suitLookupByCode } from './constants.js';
+import {
+  suits,
+  defaultMultipliers,
+  suitCodes,
+  suitLookupByCode,
+  defaultAutoDrawIntervalMinutes
+} from './constants.js';
 import { resolveTheme } from './theme.js';
 
 const CARD_SEPARATOR = '.';
@@ -110,6 +116,15 @@ export function serializeState(state) {
     params.set('endless', '1');
   }
 
+  if (state?.configuration?.autoDraw?.enabled) {
+    params.set('auto', '1');
+  }
+
+  const autoInterval = Number.parseFloat(state?.configuration?.autoDraw?.intervalMinutes);
+  if (Number.isFinite(autoInterval) && autoInterval > 0) {
+    params.set('autoInterval', String(autoInterval));
+  }
+
   const multipliers = encodeMultipliers(state?.configuration?.multipliers ?? defaultMultipliers);
   params.set('multipliers', multipliers);
 
@@ -132,7 +147,14 @@ export function deserializeState(searchParams) {
   const configuration = {
     theme: params.get('theme'),
     endless: params.get('endless') === '1',
-    multipliers: decodeMultipliers(params.get('multipliers')) ?? defaultMultipliers
+    multipliers: decodeMultipliers(params.get('multipliers')) ?? defaultMultipliers,
+    autoDraw: {
+      enabled: params.get('auto') === '1',
+      intervalMinutes: (() => {
+        const numeric = Number.parseFloat(params.get('autoInterval'));
+        return Number.isFinite(numeric) && numeric > 0 ? numeric : defaultAutoDrawIntervalMinutes;
+      })()
+    }
   };
 
   const started = params.get('started') === '1';
