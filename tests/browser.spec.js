@@ -646,6 +646,62 @@ test.describe("Deck of Gains app", () => {
     expect(state.newSetLabel).toBe("New Set");
   });
 
+  test("the New Set button preserves the current configuration for reuse", async ({
+    page,
+  }) => {
+    await startWorkoutWithOptions(page, {
+      theme: "rugged",
+      multipliers: { hearts: 3, spades: 4, diamonds: 5, clubs: 5 },
+      autoDraw: { enabled: true, intervalSeconds: 125 },
+    });
+
+    await setDeck(page, [
+      { suit: "hearts", number: 2 },
+      { suit: "spades", number: 3 },
+      { suit: "diamonds", number: 4 },
+      { suit: "clubs", number: 5 },
+    ]);
+
+    await page.evaluate(() => {
+      roundCompleted = false;
+      roundNumber = 11;
+    });
+
+    await withPatchedRandom(page, 0, async () => {
+      await page.evaluate(() => {
+        drawCards();
+      });
+    });
+
+    await Promise.all([
+      page.waitForNavigation(),
+      page.click('#instructions button:has-text("New Set")'),
+    ]);
+
+    await expect(page.locator("#configuration-screen")).toBeVisible();
+    await expect(page.locator("#app")).toBeHidden();
+    await expect(page.locator("body")).toHaveAttribute("data-theme", "rugged");
+    await expect(
+      page.locator('input[name="theme"][value="rugged"]'),
+    ).toBeChecked();
+    await expect(page.locator("#multiplier-hearts")).toHaveValue("3");
+    await expect(page.locator("#multiplier-spades")).toHaveValue("4");
+    await expect(page.locator("#multiplier-diamonds")).toHaveValue("5");
+    await expect(page.locator("#multiplier-clubs")).toHaveValue("5");
+    await expect(page.locator("#endless-mode")).not.toBeChecked();
+    await expect(page.locator("#auto-draw-enabled")).toBeChecked();
+    await expect(page.locator("#auto-draw-interval-container")).toBeVisible();
+    await expect(page.locator("#auto-draw-minutes")).toHaveValue("2");
+    await expect(page.locator("#auto-draw-seconds")).toHaveValue("5");
+
+    const params = new URL(page.url()).searchParams;
+    expect(params.get("theme")).toBe("rugged");
+    expect(params.get("multipliers")).toBe("h-3.s-4.d-5.c-5");
+    expect(params.get("auto")).toBe("1");
+    expect(params.get("autoIntervalSeconds")).toBe("125");
+    expect(params.get("endless")).toBe(null);
+  });
+
   test("endless mode removes the round limit and reshuffles after the deck is depleted", async ({
     page,
   }) => {

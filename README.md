@@ -30,7 +30,7 @@ Activate the **Rugged Theme** and prove you’re ready to enter the tribe of leg
 1. Open the app in your browser.
 2. **Add to Home Screen** for a full-screen experience (especially on iOS).
 3. Hit "Draw Cards" and let the pain begin.
-4. Once the deck is done, hit "New Set" to start over—or collapse in glory.
+4. Once the deck is done, hit "New Set" to start over with the same theme and settings—or collapse in glory.
 5. Want to go **RUGGED**? Add `?theme=rugged` to the URL (or the legacy `?rugged=true`) and watch the screen turn into a warrior’s playground.
 6. Your configuration *and* active workout are mirrored in the URL, so refreshing the page or sharing the link drops you—and your unsuspecting friends—right back into the current round. Suits are shortened to `h/s/d/c` codes to keep those links lean.
 
