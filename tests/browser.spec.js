@@ -458,11 +458,16 @@ test.describe('Deck of Gains app', () => {
 
     const soundState = await page.evaluate(() => ({
       effect: window.__deckOfGainsLastSound,
-      count: window.__deckOfGainsLastSoundPlayCount
+      count: window.__deckOfGainsLastSoundPlayCount,
+      schedule: window.__deckOfGainsLastSoundSchedule ?? []
     }));
 
     expect(soundState.effect).toBe('whoosh');
     expect(soundState.count).toBe(4);
+    expect(soundState.schedule).toHaveLength(4);
+    for (let i = 1; i < soundState.schedule.length; i += 1) {
+      expect(soundState.schedule[i] - soundState.schedule[i - 1]).toBeGreaterThanOrEqual(0.14);
+    }
   });
 
   test('drawing eight cards plays the whoosh sound eight times', async ({ page }) => {
@@ -496,11 +501,16 @@ test.describe('Deck of Gains app', () => {
 
     const soundState = await page.evaluate(() => ({
       effect: window.__deckOfGainsLastSound,
-      count: window.__deckOfGainsLastSoundPlayCount
+      count: window.__deckOfGainsLastSoundPlayCount,
+      schedule: window.__deckOfGainsLastSoundSchedule ?? []
     }));
 
     expect(soundState.effect).toBe('whoosh');
     expect(soundState.count).toBe(8);
+    expect(soundState.schedule).toHaveLength(8);
+    for (let i = 1; i < soundState.schedule.length; i += 1) {
+      expect(soundState.schedule[i] - soundState.schedule[i - 1]).toBeGreaterThanOrEqual(0.14);
+    }
   });
 
   test('respects configured multipliers when calculating totals', async ({ page }) => {

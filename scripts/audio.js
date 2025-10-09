@@ -67,6 +67,7 @@ export function playDrawSound(options = {}) {
 
   window.__deckOfGainsLastSound = 'whoosh';
   window.__deckOfGainsLastSoundPlayCount = plays;
+  window.__deckOfGainsLastSoundSchedule = [];
 
   const ctx = getAudioContext();
   if (!ctx) {
@@ -77,11 +78,14 @@ export function playDrawSound(options = {}) {
 
   try {
     const baseTime = ctx.currentTime;
-    const spacingSeconds = 0.08;
+    const spacingSeconds = 0.15;
+    const scheduledTimes = [];
     for (let i = 0; i < plays; i += 1) {
       const when = baseTime + i * spacingSeconds;
       playWhoosh(ctx, when);
+      scheduledTimes.push(Number((when - baseTime).toFixed(4)));
     }
+    window.__deckOfGainsLastSoundSchedule = scheduledTimes;
   } catch (error) {
     // Audio playback errors should not interrupt gameplay.
   }
