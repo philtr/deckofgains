@@ -5,7 +5,7 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Check out repository
@@ -15,27 +15,57 @@ jobs:
         uses: awalsh128/cache-apt-pkgs-action@v1
         with:
           packages: >-
-            libatk-bridge2.0-0
-            libatk1.0-0
-            libcups2
+            gstreamer1.0-gl
+            gstreamer1.0-libav
+            gstreamer1.0-plugins-bad
+            gstreamer1.0-plugins-base
+            gstreamer1.0-plugins-good
+            gstreamer1.0-plugins-ugly
+            libasound2t64
+            libatk-bridge2.0-0t64
+            libatk1.0-0t64
+            libavif16
+            libcups2t64
             libdrm2
+            libevent-2.1-7t64
+            libflite1
             libgbm1
-            libgtk-3-0
+            libgles2
+            libglib2.0-0t64
+            libgraphene-1.0-0
+            libgstallocators-1.0-0
+            libgstapp-1.0-0
+            libgstaudio-1.0-0
+            libgstcodecparsers-1.0-0
+            libgstfft-1.0-0
+            libgstgl-1.0-0
+            libgstpbutils-1.0-0
+            libgsttag-1.0-0
+            libgstvideo-1.0-0
+            libgtk-3-0t64
+            libgtk-4-1
+            libharfbuzz-icu0
+            libhyphen0
+            libmanette-0.2-0
             libnspr4
             libnss3
-            libxcb1
+            libopus0
+            libpango-1.0-0
+            libpangocairo-1.0-0
+            libsecret-1-0
+            libvpx9
+            libwoff1
+            libx11-xcb1
+            libx264-164
             libxcomposite1
             libxdamage1
             libxfixes3
             libxkbcommon0
             libxrandr2
-            libpango-1.0-0
-            libpangocairo-1.0-0
-            libx11-xcb1
+            libxcb1
             libxshmfence1
+            mesa-vulkan-drivers
             xdg-utils
-            libasound2
-            libglib2.0-0
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
