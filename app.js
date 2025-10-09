@@ -31,6 +31,12 @@ let roundNumber = 1;
 const totalRounds = 12;
 let deck = [];
 
+function onThemeChange(event) {
+  const selectedTheme = event?.target?.value || configuration.theme;
+  configuration.theme = selectedTheme;
+  applyTheme(selectedTheme);
+}
+
 function initializeApp() {
   applyRuggedTheme();
   configuration.theme = document.body.classList.contains('rugged') ? 'rugged' : 'casino';
@@ -191,6 +197,11 @@ function initializeConfigurationScreen() {
   if (themeInput) {
     themeInput.checked = true;
   }
+
+  const themeInputs = document.querySelectorAll('input[name="theme"]');
+  themeInputs.forEach(input => {
+    input.addEventListener('change', onThemeChange);
+  });
 }
 
 function applyTheme(theme) {

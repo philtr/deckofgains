@@ -6,7 +6,10 @@
     <style>
       body {
         font-family: Arial, sans-serif;
-        margin: 2rem;
+        margin: 0;
+        padding: 32px clamp(16px, 5vw, 32px);
+        padding-top: calc(env(safe-area-inset-top, 0px) + 32px);
+        padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 32px);
         background: #f5f5f5;
       }
       #test-results {
@@ -199,6 +202,14 @@
           return `${card.suit}-${card.number}`;
         }
 
+        function parsePixels(value) {
+          if (typeof value !== 'string') {
+            return 0;
+          }
+          const match = value.match(/([0-9.]+)px/);
+          return match ? parseFloat(match[1]) : 0;
+        }
+
         function runTests() {
           test('configuration screen is shown on load', () => {
             const configurationScreen = document.getElementById('configuration-screen');
@@ -250,6 +261,37 @@
             const appContainer = document.getElementById('app');
             expect(appContainer && appContainer.style.display !== 'none', 'Workout area should be visible after starting the workout');
             expect(document.body.classList.contains('rugged'), 'Selected theme should be applied to the body');
+          });
+
+          test('changing the theme radio buttons applies the theme immediately', () => {
+            const ruggedRadio = document.querySelector('input[name="theme"][value="rugged"]');
+            const casinoRadio = document.querySelector('input[name="theme"][value="casino"]');
+
+            expect(ruggedRadio, 'Rugged theme radio should be present');
+            expect(casinoRadio, 'Casino theme radio should be present');
+
+            ruggedRadio.checked = true;
+            ruggedRadio.dispatchEvent(new Event('change', { bubbles: true }));
+            expect(document.body.classList.contains('rugged'), 'Switching to the rugged option should apply the rugged theme');
+
+            casinoRadio.checked = true;
+            casinoRadio.dispatchEvent(new Event('change', { bubbles: true }));
+            expect(!document.body.classList.contains('rugged'), 'Switching back to the casino option should remove the rugged theme');
+          });
+
+          test('configuration screen layout leaves space for mobile safe areas', () => {
+            const bodyStyles = window.getComputedStyle(document.body);
+            const topPadding = parsePixels(bodyStyles.paddingTop);
+            const bottomPadding = parsePixels(bodyStyles.paddingBottom);
+
+            expect(
+              topPadding >= 16,
+              `Body should include top padding to avoid clipping under mobile safe areas (raw: ${bodyStyles.paddingTop})`
+            );
+            expect(
+              bottomPadding >= 16,
+              `Body should include bottom padding to avoid clipping under mobile safe areas (raw: ${bodyStyles.paddingBottom})`
+            );
           });
 
           test('doDrawCards removes four cards when more than eight remain', () => {
