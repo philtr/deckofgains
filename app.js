@@ -23,9 +23,6 @@ const defaultMultipliers = {
 
 const defaultTheme = 'casino';
 const supportedThemes = new Set([defaultTheme, 'rugged']);
-const themeClassMap = {
-  rugged: 'rugged'
-};
 
 let configuration = {
   multipliers: { ...defaultMultipliers },
@@ -58,15 +55,6 @@ function deriveInitialTheme() {
 function applyTheme(themeCandidate) {
   const theme = resolveTheme(themeCandidate);
   document.body.dataset.theme = theme;
-
-  Object.values(themeClassMap).forEach(cls => {
-    document.body.classList.remove(cls);
-  });
-
-  const themeClass = themeClassMap[theme];
-  if (themeClass) {
-    document.body.classList.add(themeClass);
-  }
 }
 
 function setTheme(themeCandidate) {
