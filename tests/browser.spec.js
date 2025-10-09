@@ -1,7 +1,62 @@
 const { test, expect } = require('@playwright/test');
+const http = require('http');
+const fs = require('fs');
 const path = require('path');
 
-const fileUrl = `file://${path.resolve(__dirname, '../index.html')}`;
+const rootDir = path.resolve(__dirname, '..');
+const mimeTypes = {
+  '.css': 'text/css',
+  '.html': 'text/html',
+  '.js': 'application/javascript',
+  '.json': 'application/json',
+  '.map': 'application/json'
+};
+
+let server;
+let baseUrl;
+
+async function serveFile(req, res) {
+  try {
+    const requestUrl = new URL(req.url, 'http://localhost');
+    let pathname = decodeURIComponent(requestUrl.pathname);
+    if (pathname.endsWith('/')) {
+      pathname = `${pathname}index.html`;
+    }
+    if (pathname === '/') {
+      pathname = '/index.html';
+    }
+    const filePath = path.resolve(rootDir, `.${path.normalize(pathname)}`);
+    if (!filePath.startsWith(rootDir)) {
+      res.statusCode = 403;
+      res.end('Forbidden');
+      return;
+    }
+    const data = await fs.promises.readFile(filePath);
+    const ext = path.extname(filePath).toLowerCase();
+    res.statusCode = 200;
+    res.setHeader('Content-Type', mimeTypes[ext] ?? 'application/octet-stream');
+    res.end(data);
+  } catch (error) {
+    res.statusCode = 404;
+    res.end('Not Found');
+  }
+}
+
+test.beforeAll(async () => {
+  server = http.createServer((req, res) => {
+    serveFile(req, res);
+  });
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  const { port } = server.address();
+  baseUrl = `http://127.0.0.1:${port}/index.html`;
+});
+
+test.afterAll(async () => {
+  if (server) {
+    await new Promise(resolve => server.close(resolve));
+    server = undefined;
+  }
+});
 
 async function startWorkoutWithOptions(page, { theme = 'casino', multipliers, endless = false } = {}) {
   if (multipliers) {
@@ -47,7 +102,7 @@ async function withPatchedRandom(page, value, callback) {
 
 test.describe('Deck of Gains app', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto(fileUrl);
+    await page.goto(baseUrl);
   });
 
   test('shows the configuration screen on load', async ({ page }) => {
@@ -417,5 +472,76 @@ test.describe('Deck of Gains app', () => {
 
     expect(secondDrawState.deckSize).toBe(48);
     expect(secondDrawState.hasNewSetButton).toBe(false);
+  });
+
+  test('persists workout progress in the URL and restores it on reload', async ({ page }) => {
+    await startWorkoutWithOptions(page, {
+      theme: 'rugged',
+      endless: false,
+      multipliers: { hearts: 2, spades: 3, diamonds: 4, clubs: 5 }
+    });
+
+    await setDeck(page, [
+      { suit: 'hearts', number: 1 },
+      { suit: 'spades', number: 12 },
+      { suit: 'diamonds', number: 5 },
+      { suit: 'clubs', number: 3 },
+      { suit: 'diamonds', number: 13 },
+      { suit: 'clubs', number: 4 },
+      { suit: 'spades', number: 2 },
+      { suit: 'hearts', number: 7 },
+      { suit: 'clubs', number: 11 }
+    ]);
+
+    await page.evaluate(() => {
+      roundCompleted = false;
+    });
+
+    await withPatchedRandom(page, 0, async () => {
+      await page.click('#draw-button');
+    });
+
+    await expect(page.locator('#instructions p').nth(0)).toHaveText('Jumping Jacks: 22 reps | Squats: 30 reps | Pushups: 20 reps | Abs: 15 reps');
+    await expect(page.locator('#instructions p').nth(1)).toHaveText('Complete a 50 yard sprint.');
+
+    const url = page.url();
+    const params = new URL(url).searchParams;
+
+    expect(params.get('started')).toBe('1');
+    expect(params.get('round')).toBe('2');
+    expect(params.get('theme')).toBe('rugged');
+    expect(params.get('endless')).toBe(null);
+    expect(params.get('completed')).toBe('1');
+    expect(params.get('multipliers')).toBe('h-2.s-3.d-4.c-5');
+    expect(params.get('deck')).toBe('d-13.c-4.s-2.h-7.c-11');
+    expect(params.get('draw')).toBe('h-1.s-12.d-5.c-3');
+
+    await page.reload();
+
+    await expect(page.locator('#configuration-screen')).toBeHidden();
+    await expect(page.locator('#app')).toBeVisible();
+    await expect(page.locator('body')).toHaveAttribute('data-theme', 'rugged');
+    await expect(page.locator('#round-title')).toHaveText('Round 1 of 12');
+    await expect(page.locator('#drawn-cards .card')).toHaveCount(4);
+    await expect(page.locator('#instructions p').nth(0)).toHaveText('Jumping Jacks: 22 reps | Squats: 30 reps | Pushups: 20 reps | Abs: 15 reps');
+    await expect(page.locator('#instructions p').nth(1)).toHaveText('Complete a 50 yard sprint.');
+
+    const restoredState = await page.evaluate(() => ({
+      deckSize: deck.length,
+      roundNumber,
+      roundCompleted,
+      configuration: {
+        theme: configuration.theme,
+        endless: configuration.endless,
+        multipliers: { ...configuration.multipliers }
+      }
+    }));
+
+    expect(restoredState.deckSize).toBe(5);
+    expect(restoredState.roundNumber).toBe(2);
+    expect(restoredState.roundCompleted).toBe(true);
+    expect(restoredState.configuration.theme).toBe('rugged');
+    expect(restoredState.configuration.endless).toBe(false);
+    expect(restoredState.configuration.multipliers).toEqual({ hearts: 2, spades: 3, diamonds: 4, clubs: 5 });
   });
 });
