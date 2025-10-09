@@ -22,6 +22,7 @@ import {
 import {
   deserializeState,
   persistState,
+  serializeState,
   setInitialSerialized,
   subscribeToPopState
 } from './persistence.js';
@@ -368,7 +369,14 @@ function appendNewSetButton(instructionsDiv) {
   const newSetButton = document.createElement('button');
   newSetButton.textContent = 'New Set';
   newSetButton.addEventListener('click', () => {
-    window.location.href = `${window.location.pathname}`;
+    const state = getState();
+    const params = serializeState({
+      configuration: state.configuration,
+      started: false
+    });
+    const search = params.toString();
+    const url = `${window.location.pathname}${search ? `?${search}` : ''}`;
+    window.location.href = url;
   });
   instructionsDiv.appendChild(newSetButton);
 }
