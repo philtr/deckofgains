@@ -3,80 +3,243 @@
   <head>
     <meta charset="UTF-8">
     <title>Deck of Gains Tests</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 2rem;
+        background: #f5f5f5;
+      }
+      #test-results {
+        background: #fff;
+        border-radius: 8px;
+        padding: 1.5rem;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+      }
+      .test-pass {
+        color: #0a7f00;
+      }
+      .test-fail {
+        color: #b00020;
+      }
+      pre {
+        background: #272822;
+        color: #f8f8f2;
+        padding: 1rem;
+        border-radius: 6px;
+        overflow-x: auto;
+      }
+      #app {
+        display: none;
+      }
+    </style>
   </head>
   <body>
-    <div id="app" style="display: none">
+    <div id="app">
       <h1 id="round-title">Deck of Gains</h1>
       <div id="drawn-cards"></div>
       <button id="draw-button" onclick="drawCards()">Draw Cards</button>
       <div id="instructions"></div>
     </div>
 
+    <section id="test-results">
+      <h1>Deck of Gains Browser Test Suite</h1>
+      <ul id="results-list"></ul>
+      <pre id="summary"></pre>
+    </section>
+
     <script src="app.js"></script>
     <script>
-    // Test suite
-    function runTests() {
-      let passed = 0;
-      let failed = 0;
+      (function () {
+        const resultsList = document.getElementById('results-list');
+        const summary = document.getElementById('summary');
+        let passed = 0;
+        let failed = 0;
 
-      function assert(description, condition) {
-        if (condition) {
-          console.log(`✔️ ${description}`);
-          passed++;
-        } else {
-          console.error(`❌ ${description}`);
-          failed++;
+        function logResult(message, isPass) {
+          const item = document.createElement('li');
+          item.textContent = message;
+          item.className = isPass ? 'test-pass' : 'test-fail';
+          resultsList.appendChild(item);
         }
-      }
 
-      // Test 1: Deck Initialization
-      initializeDeck();
-      assert("Deck has 52 cards after initialization", deck.length === 52);
-
-      const suits = ["hearts", "spades", "diamonds", "clubs"];
-      const allSuitsPresent = suits.every(suit => deck.some(card => card.suit === suit));
-      assert("Deck contains all suits", allSuitsPresent);
-
-      // Test 2: Card Drawing
-      drawCards();
-      const remainingCards = deck.length;
-      assert("Deck size decreases after drawing cards", remainingCards === 48);
-
-      // Test 3: Total Reps Calculation
-      const totals = { "Jumping Jacks": 0, "Squats": 0, "Pushups": 0, "Abs": 0 };
-      deck.slice(0, 4).forEach(card => {
-        const exercise = exercises[card.suit];
-        let reps = getCardValue(card.number);
-        if (card.suit === "clubs") {
-          reps *= 2;
+        function expect(condition, message) {
+          if (!condition) {
+            throw new Error(message);
+          }
         }
-        totals[exercise] += reps;
-      });
-      const totalReps = Object.values(totals).reduce((sum, val) => sum + val, 0);
-      assert("Total reps for 4 cards is correctly calculated", totalReps > 0);
 
-      // Test 4: Last round draws 8 cards
-      drawCards(); // round 2
-      drawCards(); // round 3
-      drawCards(); // round 4
-      drawCards(); // round 5
-      drawCards(); // round 6
-      drawCards(); // round 7
-      drawCards(); // round 8
-      drawCards(); // round 9
-      drawCards(); // round 10
-      drawCards(); // round 11
-      const lastDraw = doDrawCards(); // round 12
-      assert("Last draw contains 8 cards", lastDraw.length === 8)
-      assert("Deck has zero cards remaining on 12th round", deck.length === 0);
+        function test(name, fn) {
+          try {
+            fn();
+            passed += 1;
+            logResult(`✔️ ${name}`, true);
+          } catch (error) {
+            failed += 1;
+            logResult(`❌ ${name}: ${error.message}`, false);
+          }
+        }
 
+        function resetAppDOM() {
+          document.getElementById('drawn-cards').innerHTML = '';
+          const instructions = document.getElementById('instructions');
+          instructions.innerHTML = '';
+          const drawButton = document.getElementById('draw-button');
+          drawButton.style.display = '';
+          roundCompleted = false;
+        }
 
-      // Summary
-      console.log(`Tests Passed: ${passed}`);
-      console.log(`Tests Failed: ${failed}`);
-    }
+        function withPatchedRandom(value, callback) {
+          const originalRandom = Math.random;
+          Math.random = () => value;
+          try {
+            return callback();
+          } finally {
+            Math.random = originalRandom;
+          }
+        }
 
-    runTests();
+        function buildCards(cards) {
+          deck = cards.map(card => ({ ...card }));
+        }
+
+        function cardKey(card) {
+          return `${card.suit}-${card.number}`;
+        }
+
+        function runTests() {
+          test('initializeDeck creates a 52 card deck with unique cards', () => {
+            initializeDeck();
+            expect(deck.length === 52, 'Deck should contain 52 cards');
+            const uniqueCards = new Set(deck.map(cardKey));
+            expect(uniqueCards.size === 52, 'Each card in the deck should be unique');
+          });
+
+          test('getCardDisplayValue formats face cards and aces correctly', () => {
+            expect(getCardDisplayValue(1) === 'A', 'Ace should display as A');
+            expect(getCardDisplayValue(11) === 'J', 'Jack should display as J');
+            expect(getCardDisplayValue(12) === 'Q', 'Queen should display as Q');
+            expect(getCardDisplayValue(13) === 'K', 'King should display as K');
+            expect(getCardDisplayValue(7) === 7, 'Number cards should display their number');
+          });
+
+          test('getCardValue applies scoring rules for face cards and aces', () => {
+            expect(getCardValue(12) === 10, 'Face cards should be worth 10');
+            expect(getCardValue(1) === 11, 'Ace should be worth 11');
+            expect(getCardValue(7) === 7, 'Number cards should be worth their number');
+          });
+
+          test('doDrawCards removes four cards when more than eight remain', () => {
+            roundCompleted = false;
+            buildCards([
+              { suit: 'hearts', number: 1 },
+              { suit: 'spades', number: 12 },
+              { suit: 'diamonds', number: 5 },
+              { suit: 'clubs', number: 3 },
+              { suit: 'diamonds', number: 13 },
+              { suit: 'clubs', number: 4 },
+              { suit: 'spades', number: 2 },
+              { suit: 'hearts', number: 7 },
+              { suit: 'clubs', number: 11 }
+            ]);
+
+            const drawn = withPatchedRandom(0, () => doDrawCards());
+            expect(drawn.length === 4, 'Exactly four cards should be drawn');
+            expect(deck.length === 5, 'Deck should retain the remaining cards');
+            const expected = [
+              'hearts-1',
+              'spades-12',
+              'diamonds-5',
+              'clubs-3'
+            ];
+            expect(drawn.map(cardKey).join('|') === expected.join('|'), 'Cards should be drawn in predictable order when random is patched');
+          });
+
+          test('doDrawCards draws the remainder when eight or fewer cards remain', () => {
+            roundCompleted = true;
+            buildCards([
+              { suit: 'hearts', number: 2 },
+              { suit: 'spades', number: 3 },
+              { suit: 'diamonds', number: 4 },
+              { suit: 'clubs', number: 5 },
+              { suit: 'hearts', number: 6 },
+              { suit: 'spades', number: 7 },
+              { suit: 'diamonds', number: 8 },
+              { suit: 'clubs', number: 9 }
+            ]);
+
+            const drawn = withPatchedRandom(0, () => doDrawCards());
+            expect(drawn.length === 8, 'All remaining cards should be drawn');
+            expect(deck.length === 0, 'Deck should be empty after drawing all remaining cards');
+          });
+
+          test('drawCards updates the DOM and workout instructions', () => {
+            resetAppDOM();
+            roundNumber = 1;
+            buildCards([
+              { suit: 'hearts', number: 1 },
+              { suit: 'spades', number: 12 },
+              { suit: 'diamonds', number: 5 },
+              { suit: 'clubs', number: 3 },
+              { suit: 'diamonds', number: 13 },
+              { suit: 'clubs', number: 4 },
+              { suit: 'spades', number: 2 },
+              { suit: 'hearts', number: 7 },
+              { suit: 'clubs', number: 11 }
+            ]);
+
+            withPatchedRandom(0, () => drawCards());
+
+            const roundTitle = document.getElementById('round-title');
+            expect(roundTitle.textContent === 'Round 1 of 12', 'Round title should show the current round');
+            const drawnCards = document.getElementById('drawn-cards');
+            expect(drawnCards.children.length === 4, 'Exactly four card elements should be rendered');
+            const instructions = document.getElementById('instructions');
+            expect(
+              instructions.children[0].textContent === 'Jumping Jacks: 11 reps | Squats: 10 reps | Pushups: 5 reps | Abs: 6 reps',
+              'Instructions should summarize the reps for drawn cards'
+            );
+            expect(
+              instructions.children[1].textContent === 'Complete a 50 yard sprint.',
+              'A sprint reminder should be shown when cards remain in the deck'
+            );
+            expect(deck.length === 5, 'Deck should have five cards remaining');
+            expect(roundCompleted === true, 'Round should be marked as completed');
+            expect(roundNumber === 2, 'Next round number should be prepared');
+            expect(document.getElementById('draw-button').style.display !== 'none', 'Draw button should remain visible when cards remain');
+          });
+
+          test('drawCards handles the final draw and sprint instructions', () => {
+            resetAppDOM();
+            roundNumber = 11;
+            buildCards([
+              { suit: 'hearts', number: 2 },
+              { suit: 'spades', number: 3 },
+              { suit: 'diamonds', number: 4 },
+              { suit: 'clubs', number: 5 }
+            ]);
+
+            withPatchedRandom(0, () => drawCards());
+
+            expect(deck.length === 0, 'Deck should be empty after the final draw');
+            const instructions = document.getElementById('instructions');
+            expect(
+              instructions.children[0].textContent === 'Jumping Jacks: 2 reps | Squats: 3 reps | Pushups: 4 reps | Abs: 10 reps',
+              'Instructions should summarize all reps for the final draw'
+            );
+            expect(
+              instructions.children[1].textContent === 'Complete 2 sprints of 50 yards each.',
+              'Two sprint reminder should be shown when the deck is depleted'
+            );
+            const newSetButton = instructions.querySelector('button');
+            expect(newSetButton && newSetButton.textContent === 'New Set', 'A New Set button should be presented when the deck is depleted');
+            expect(document.getElementById('draw-button').style.display === 'none', 'Draw button should be hidden when the deck is depleted');
+          });
+
+          summary.textContent = `Tests Passed: ${passed}\nTests Failed: ${failed}`;
+        }
+
+        window.addEventListener('load', runTests);
+      })();
     </script>
   </body>
 </html>
