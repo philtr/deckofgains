@@ -11,3 +11,7 @@
 ## Additional Practices
 - Maintain clear and concise documentation or comments when behavior might not be obvious.
 - Prefer small, focused commits with descriptive messages.
+
+## AI Contributors
+- Direct AI agents must format commit messages using the [Conventional Commits](https://www.conventionalcommits.org/) standard.
+- Direct AI agents must update the README whenever their changes impact user-facing behavior or instructions.

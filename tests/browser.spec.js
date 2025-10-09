@@ -112,22 +112,21 @@ test.describe('Deck of Gains app', () => {
     await expect(page.locator('#configuration-screen')).toBeHidden();
     await expect(page.locator('#app')).toBeVisible();
 
-    const bodyClasses = await page.evaluate(() => Array.from(document.body.classList));
-    expect(bodyClasses).toContain('rugged');
+    await expect(page.locator('body')).toHaveAttribute('data-theme', 'rugged');
   });
 
-  test('switching theme radios toggles the rugged class immediately', async ({ page }) => {
+  test('switching theme radios updates the body data-theme immediately', async ({ page }) => {
     await page.check('input[name="theme"][value="rugged"]');
-    await page.waitForFunction(() => document.body.classList.contains('rugged'));
+    await page.waitForFunction(() => document.body.dataset.theme === 'rugged');
 
-    let hasRugged = await page.evaluate(() => document.body.classList.contains('rugged'));
-    expect(hasRugged).toBe(true);
+    let activeTheme = await page.evaluate(() => document.body.dataset.theme);
+    expect(activeTheme).toBe('rugged');
 
     await page.check('input[name="theme"][value="casino"]');
-    await page.waitForFunction(() => !document.body.classList.contains('rugged'));
+    await page.waitForFunction(() => document.body.dataset.theme === 'casino');
 
-    hasRugged = await page.evaluate(() => document.body.classList.contains('rugged'));
-    expect(hasRugged).toBe(false);
+    activeTheme = await page.evaluate(() => document.body.dataset.theme);
+    expect(activeTheme).toBe('casino');
   });
 
   test('reserves padding for mobile safe areas', async ({ page }) => {
