@@ -31,10 +31,81 @@
       #app {
         display: none;
       }
+      #configuration-screen {
+        max-width: 420px;
+        margin-bottom: 2rem;
+        padding: 1rem;
+        background: #ffffff;
+        border-radius: 12px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+      }
+      #configuration-screen form {
+        display: grid;
+        gap: 0.75rem;
+      }
+      .configuration-row {
+        display: flex;
+        justify-content: space-between;
+        gap: 0.5rem;
+        align-items: center;
+      }
     </style>
   </head>
-  <body>
-    <div id="app">
+  <body onload="initializeApp()">
+    <div id="configuration-screen" style="display: flex;">
+      <h1>Deck of Gains</h1>
+      <form id="configuration-form">
+        <div class="configuration-row">
+          <label for="multiplier-hearts">Hearts Multiplier</label>
+          <select id="multiplier-hearts">
+            <option value="1">1×</option>
+            <option value="2">2×</option>
+            <option value="3">3×</option>
+            <option value="4">4×</option>
+          </select>
+        </div>
+        <div class="configuration-row">
+          <label for="multiplier-spades">Spades Multiplier</label>
+          <select id="multiplier-spades">
+            <option value="1">1×</option>
+            <option value="2">2×</option>
+            <option value="3">3×</option>
+            <option value="4">4×</option>
+          </select>
+        </div>
+        <div class="configuration-row">
+          <label for="multiplier-diamonds">Diamonds Multiplier</label>
+          <select id="multiplier-diamonds">
+            <option value="1">1×</option>
+            <option value="2">2×</option>
+            <option value="3">3×</option>
+            <option value="4">4×</option>
+          </select>
+        </div>
+        <div class="configuration-row">
+          <label for="multiplier-clubs">Clubs Multiplier</label>
+          <select id="multiplier-clubs">
+            <option value="1">1×</option>
+            <option value="2">2×</option>
+            <option value="3">3×</option>
+            <option value="4">4×</option>
+          </select>
+        </div>
+        <div class="configuration-row">
+          <label>
+            <input type="radio" name="theme" value="casino" checked>
+            Casino Theme
+          </label>
+          <label>
+            <input type="radio" name="theme" value="rugged">
+            Rugged Theme
+          </label>
+        </div>
+        <button type="button" id="start-workout" onclick="startWorkout()">Start Workout</button>
+      </form>
+    </div>
+
+    <div id="app" style="display: none;">
       <h1 id="round-title">Deck of Gains</h1>
       <div id="drawn-cards"></div>
       <button id="draw-button" onclick="drawCards()">Draw Cards</button>
@@ -88,6 +159,28 @@
           roundCompleted = false;
         }
 
+        function startWorkoutWithOptions({ theme, multipliers } = {}) {
+          if (multipliers) {
+            Object.entries(multipliers).forEach(([suit, value]) => {
+              const select = document.getElementById(`multiplier-${suit}`);
+              if (select) {
+                select.value = String(value);
+              }
+            });
+          }
+
+          if (theme) {
+            const themeInput = document.querySelector(`input[name="theme"][value="${theme}"]`);
+            if (themeInput) {
+              themeInput.checked = true;
+            }
+          }
+
+          if (typeof startWorkout === 'function') {
+            startWorkout();
+          }
+        }
+
         function withPatchedRandom(value, callback) {
           const originalRandom = Math.random;
           Math.random = () => value;
@@ -107,6 +200,27 @@
         }
 
         function runTests() {
+          test('configuration screen is shown on load', () => {
+            const configurationScreen = document.getElementById('configuration-screen');
+            expect(configurationScreen && configurationScreen.style.display !== 'none', 'Configuration screen should be visible on load');
+            const appContainer = document.getElementById('app');
+            expect(appContainer && appContainer.style.display === 'none', 'Workout area should be hidden until the workout starts');
+          });
+
+          test('default multipliers start at 1× except clubs at 2×', () => {
+            const heartsSelect = document.getElementById('multiplier-hearts');
+            expect(heartsSelect && heartsSelect.value === '1', 'Hearts default multiplier should be 1×');
+
+            const spadesSelect = document.getElementById('multiplier-spades');
+            expect(spadesSelect && spadesSelect.value === '1', 'Spades default multiplier should be 1×');
+
+            const diamondsSelect = document.getElementById('multiplier-diamonds');
+            expect(diamondsSelect && diamondsSelect.value === '1', 'Diamonds default multiplier should be 1×');
+
+            const clubsSelect = document.getElementById('multiplier-clubs');
+            expect(clubsSelect && clubsSelect.value === '2', 'Clubs default multiplier should remain 2×');
+          });
+
           test('initializeDeck creates a 52 card deck with unique cards', () => {
             initializeDeck();
             expect(deck.length === 52, 'Deck should contain 52 cards');
@@ -126,6 +240,16 @@
             expect(getCardValue(12) === 10, 'Face cards should be worth 10');
             expect(getCardValue(1) === 11, 'Ace should be worth 11');
             expect(getCardValue(7) === 7, 'Number cards should be worth their number');
+          });
+
+          test('startWorkout applies theme selection and hides the configuration screen', () => {
+            startWorkoutWithOptions({ theme: 'rugged', multipliers: { hearts: 2, spades: 2, diamonds: 2, clubs: 2 } });
+
+            const configurationScreen = document.getElementById('configuration-screen');
+            expect(configurationScreen && configurationScreen.style.display === 'none', 'Configuration screen should be hidden after starting the workout');
+            const appContainer = document.getElementById('app');
+            expect(appContainer && appContainer.style.display !== 'none', 'Workout area should be visible after starting the workout');
+            expect(document.body.classList.contains('rugged'), 'Selected theme should be applied to the body');
           });
 
           test('doDrawCards removes four cards when more than eight remain', () => {
@@ -174,7 +298,7 @@
 
           test('drawCards updates the DOM and workout instructions', () => {
             resetAppDOM();
-            roundNumber = 1;
+            startWorkoutWithOptions({ theme: 'casino', multipliers: { hearts: 2, spades: 2, diamonds: 2, clubs: 2 } });
             buildCards([
               { suit: 'hearts', number: 1 },
               { suit: 'spades', number: 12 },
@@ -195,7 +319,7 @@
             expect(drawnCards.children.length === 4, 'Exactly four card elements should be rendered');
             const instructions = document.getElementById('instructions');
             expect(
-              instructions.children[0].textContent === 'Jumping Jacks: 11 reps | Squats: 10 reps | Pushups: 5 reps | Abs: 6 reps',
+              instructions.children[0].textContent === 'Jumping Jacks: 22 reps | Squats: 20 reps | Pushups: 10 reps | Abs: 6 reps',
               'Instructions should summarize the reps for drawn cards'
             );
             expect(
@@ -208,8 +332,32 @@
             expect(document.getElementById('draw-button').style.display !== 'none', 'Draw button should remain visible when cards remain');
           });
 
+          test('configured multipliers adjust the workout totals', () => {
+            resetAppDOM();
+            startWorkoutWithOptions({
+              theme: 'casino',
+              multipliers: { hearts: 2, spades: 3, diamonds: 4, clubs: 4 }
+            });
+
+            buildCards([
+              { suit: 'hearts', number: 6 },
+              { suit: 'spades', number: 7 },
+              { suit: 'diamonds', number: 8 },
+              { suit: 'clubs', number: 9 }
+            ]);
+
+            withPatchedRandom(0, () => drawCards());
+
+            const instructions = document.getElementById('instructions');
+            expect(
+              instructions.children[0].textContent === 'Jumping Jacks: 12 reps | Squats: 21 reps | Pushups: 32 reps | Abs: 36 reps',
+              'Configured multipliers should be applied to each suit'
+            );
+          });
+
           test('drawCards handles the final draw and sprint instructions', () => {
             resetAppDOM();
+            startWorkoutWithOptions({ theme: 'casino', multipliers: { hearts: 2, spades: 2, diamonds: 2, clubs: 2 } });
             roundNumber = 11;
             buildCards([
               { suit: 'hearts', number: 2 },
@@ -223,7 +371,7 @@
             expect(deck.length === 0, 'Deck should be empty after the final draw');
             const instructions = document.getElementById('instructions');
             expect(
-              instructions.children[0].textContent === 'Jumping Jacks: 2 reps | Squats: 3 reps | Pushups: 4 reps | Abs: 10 reps',
+              instructions.children[0].textContent === 'Jumping Jacks: 4 reps | Squats: 6 reps | Pushups: 8 reps | Abs: 10 reps',
               'Instructions should summarize all reps for the final draw'
             );
             expect(

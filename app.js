@@ -12,14 +12,34 @@ const suitSymbols = {
   'clubs': '♣️'
 };
 
+const suits = ['hearts', 'spades', 'diamonds', 'clubs'];
+
+const defaultMultipliers = {
+  hearts: 1,
+  spades: 1,
+  diamonds: 1,
+  clubs: 2
+};
+
+let configuration = {
+  multipliers: { ...defaultMultipliers },
+  theme: 'casino'
+};
+
 let roundCompleted = false;
 let roundNumber = 1;
 const totalRounds = 12;
 let deck = [];
 
+function initializeApp() {
+  applyRuggedTheme();
+  configuration.theme = document.body.classList.contains('rugged') ? 'rugged' : 'casino';
+  configuration.multipliers = { ...defaultMultipliers };
+  initializeConfigurationScreen();
+}
+
 function initializeDeck() {
   deck = [];
-  const suits = ['hearts', 'spades', 'diamonds', 'clubs'];
   for (let suit of suits) {
     for (let number = 1; number <= 13; number++) {
       deck.push({ suit, number });
@@ -97,9 +117,8 @@ function drawCards() {
   cards.forEach(card => {
     const exercise = exercises[card.suit];
     let reps = getCardValue(card.number);
-    if (card.suit === 'clubs') {
-      reps *= 2;
-    }
+    const multiplier = configuration.multipliers[card.suit] ?? defaultMultipliers[card.suit] ?? 1;
+    reps *= multiplier;
     totals[exercise] += reps;
   });
 
@@ -143,6 +162,93 @@ function applyRuggedTheme() {
   const params = new URLSearchParams(window.location.search);
   if (params.get('rugged') === 'true') {
     document.body.classList.add('rugged');
+  } else {
+    document.body.classList.remove('rugged');
+  }
+}
+
+function initializeConfigurationScreen() {
+  const configurationScreen = document.getElementById('configuration-screen');
+  const appContainer = document.getElementById('app');
+  if (configurationScreen) {
+    configurationScreen.style.display = 'flex';
+  }
+  if (appContainer) {
+    appContainer.style.display = 'none';
+  }
+
+  suits.forEach(suit => {
+    const select = document.getElementById(`multiplier-${suit}`);
+    if (select) {
+      const multiplier = configuration.multipliers[suit] ?? defaultMultipliers[suit];
+      select.value = String(multiplier);
+    }
+  });
+
+  const selectedTheme = document.body.classList.contains('rugged') ? 'rugged' : configuration.theme;
+  configuration.theme = selectedTheme;
+  const themeInput = document.querySelector(`input[name="theme"][value="${selectedTheme}"]`);
+  if (themeInput) {
+    themeInput.checked = true;
+  }
+}
+
+function applyTheme(theme) {
+  if (theme === 'rugged') {
+    document.body.classList.add('rugged');
+  } else {
+    document.body.classList.remove('rugged');
+  }
+}
+
+function startWorkout() {
+  const configurationScreen = document.getElementById('configuration-screen');
+  const appContainer = document.getElementById('app');
+
+  const multipliers = { ...configuration.multipliers };
+  suits.forEach(suit => {
+    const select = document.getElementById(`multiplier-${suit}`);
+    if (select) {
+      const selectedValue = parseInt(select.value, 10);
+      multipliers[suit] = Number.isFinite(selectedValue) ? selectedValue : (configuration.multipliers[suit] ?? defaultMultipliers[suit]);
+    }
+  });
+
+  const selectedThemeInput = document.querySelector('input[name="theme"]:checked');
+  const theme = selectedThemeInput ? selectedThemeInput.value : configuration.theme;
+
+  configuration = {
+    multipliers,
+    theme
+  };
+
+  applyTheme(theme);
+
+  if (configurationScreen) {
+    configurationScreen.style.display = 'none';
+  }
+  if (appContainer) {
+    appContainer.style.display = 'block';
+  }
+
+  initializeDeck();
+  roundNumber = 1;
+  roundCompleted = false;
+  updateRoundTitle();
+
+  const drawnCardsDiv = document.getElementById('drawn-cards');
+  if (drawnCardsDiv) {
+    drawnCardsDiv.textContent = '';
+  }
+
+  const instructionsDiv = document.getElementById('instructions');
+  if (instructionsDiv) {
+    instructionsDiv.innerHTML = '';
+  }
+
+  const drawButton = document.getElementById('draw-button');
+  if (drawButton) {
+    drawButton.style.display = '';
   }
 }
 
