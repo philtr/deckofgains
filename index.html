@@ -89,6 +89,24 @@
           </label>
         </fieldset>
 
+        <fieldset class="configuration-section">
+          <legend>Auto-Draw</legend>
+          <label class="mode-option" for="auto-draw-enabled">
+            <input type="checkbox" id="auto-draw-enabled">
+            <span class="mode-option-text">
+              <span class="label-title">Enable Auto-Draw</span>
+              <span class="label-subtitle">Automatically draw the next hand after the timer expires.</span>
+            </span>
+          </label>
+          <label class="mode-option auto-draw-interval-option" for="auto-draw-interval">
+            <span class="mode-option-text">
+              <span class="label-title">Interval (minutes)</span>
+              <span class="label-subtitle">Default is 2.5 minutes.</span>
+            </span>
+            <input type="number" id="auto-draw-interval" min="0.01" step="0.01" value="2.5">
+          </label>
+        </fieldset>
+
         <button type="button" id="start-workout" onclick="startWorkout()">Start Workout</button>
       </form>
     </div>

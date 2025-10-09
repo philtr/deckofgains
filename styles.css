@@ -126,6 +126,22 @@ body {
   }
 }
 
+.mode-option.auto-draw-interval-option {
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+.auto-draw-interval-option input[type="number"] {
+  width: 110px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  font-weight: 600;
+  font-size: 1rem;
+  background: #ffffff;
+  color: inherit;
+}
+
 .mode-option input[type="checkbox"] {
   transform: scale(1.2);
   accent-color: #2563eb;
@@ -230,6 +246,12 @@ body[data-theme="casino"] {
         color: rgba(255, 255, 255, 0.75);
       }
     }
+
+    .auto-draw-interval-option input[type="number"] {
+      background: rgba(255, 255, 255, 0.2);
+      border-color: rgba(255, 255, 255, 0.35);
+      color: #ffffff;
+    }
   }
 
   .theme-option span {
@@ -323,6 +345,12 @@ body[data-theme="rugged"] {
       .label-subtitle {
         color: rgba(255, 255, 255, 0.75);
       }
+    }
+
+    .auto-draw-interval-option input[type="number"] {
+      background: rgba(34, 34, 34, 0.85);
+      border-color: rgba(255, 69, 0, 0.6);
+      color: #ffffff;
     }
   }
 

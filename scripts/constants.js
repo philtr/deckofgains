@@ -37,3 +37,5 @@ export const defaultTheme = 'casino';
 export const supportedThemes = new Set([defaultTheme, 'rugged']);
 
 export const totalRounds = 12;
+
+export const defaultAutoDrawIntervalMinutes = 2.5;

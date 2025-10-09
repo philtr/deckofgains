@@ -1,4 +1,9 @@
-import { suits, defaultMultipliers, totalRounds } from './constants.js';
+import {
+  suits,
+  defaultMultipliers,
+  totalRounds,
+  defaultAutoDrawIntervalMinutes
+} from './constants.js';
 import { applyTheme, deriveInitialTheme, resolveTheme } from './theme.js';
 import { buildDeck, calculateTotals, createCardElement } from './deck.js';
 import {
@@ -20,8 +25,10 @@ import {
   setInitialSerialized,
   subscribeToPopState
 } from './persistence.js';
+import { playDrawSound } from './audio.js';
 
 let configurationListenersInitialized = false;
+let autoDrawTimeoutId = null;
 
 function populateConfigurationForm(state) {
   const { configuration } = state;
@@ -41,6 +48,17 @@ function populateConfigurationForm(state) {
   const endlessToggle = document.getElementById('endless-mode');
   if (endlessToggle) {
     endlessToggle.checked = Boolean(configuration.endless);
+  }
+
+  const autoDrawToggle = document.getElementById('auto-draw-enabled');
+  if (autoDrawToggle) {
+    autoDrawToggle.checked = Boolean(configuration.autoDraw?.enabled);
+  }
+
+  const autoDrawIntervalInput = document.getElementById('auto-draw-interval');
+  if (autoDrawIntervalInput) {
+    const value = configuration.autoDraw?.intervalMinutes ?? defaultAutoDrawIntervalMinutes;
+    autoDrawIntervalInput.value = String(value);
   }
 }
 
@@ -101,7 +119,98 @@ function ensureConfigurationListeners() {
     });
   }
 
+  const autoDrawToggle = document.getElementById('auto-draw-enabled');
+  if (autoDrawToggle) {
+    autoDrawToggle.addEventListener('change', event => {
+      updateConfiguration({
+        autoDraw: { enabled: event.target.checked }
+      });
+    });
+  }
+
+  const autoDrawIntervalInput = document.getElementById('auto-draw-interval');
+  if (autoDrawIntervalInput) {
+    autoDrawIntervalInput.addEventListener('change', event => {
+      const numeric = Number.parseFloat(event.target.value);
+      updateConfiguration({
+        autoDraw: {
+          intervalMinutes: Number.isFinite(numeric) && numeric > 0
+            ? numeric
+            : defaultAutoDrawIntervalMinutes
+        }
+      });
+      populateConfigurationForm(getState());
+    });
+    autoDrawIntervalInput.addEventListener('blur', event => {
+      const numeric = Number.parseFloat(event.target.value);
+      if (!Number.isFinite(numeric) || numeric <= 0) {
+        populateConfigurationForm(getState());
+      }
+    });
+  }
+
   configurationListenersInitialized = true;
+}
+
+function clearAutoDrawTimer() {
+  if (autoDrawTimeoutId !== null) {
+    window.clearTimeout(autoDrawTimeoutId);
+    autoDrawTimeoutId = null;
+  }
+}
+
+function shouldContinueAutoDraw(state) {
+  if (!state.started) {
+    return false;
+  }
+
+  const autoDraw = state.configuration.autoDraw ?? {};
+  if (!autoDraw.enabled) {
+    return false;
+  }
+
+  const intervalMinutes = Number.parseFloat(autoDraw.intervalMinutes);
+  if (!Number.isFinite(intervalMinutes) || intervalMinutes <= 0) {
+    return false;
+  }
+
+  if (!state.configuration.endless && state.deck.length === 0) {
+    return false;
+  }
+
+  return true;
+}
+
+function scheduleAutoDraw(state) {
+  clearAutoDrawTimer();
+
+  if (!shouldContinueAutoDraw(state)) {
+    return;
+  }
+
+  const intervalMinutes = Number.parseFloat(state.configuration.autoDraw.intervalMinutes);
+  const intervalMs = intervalMinutes * 60 * 1000;
+
+  autoDrawTimeoutId = window.setTimeout(() => {
+    autoDrawTimeoutId = null;
+    const currentState = getState();
+    if (!shouldContinueAutoDraw(currentState)) {
+      clearAutoDrawTimer();
+      return;
+    }
+    drawCards();
+  }, intervalMs);
+}
+
+function ensureAutoDrawTimer(state) {
+  if (!shouldContinueAutoDraw(state)) {
+    clearAutoDrawTimer();
+    return;
+  }
+
+  if (autoDrawTimeoutId === null) {
+    scheduleAutoDraw(state);
+  }
 }
 
 function renderTotalsParagraphs(instructionsDiv, totals) {
@@ -250,9 +359,11 @@ export function drawCards() {
     const newRoundNumber = stateBeforeDraw.roundNumber + 1;
     setRoundCompleted(true);
     setRoundNumber(newRoundNumber);
+    playDrawSound(stateBeforeDraw.configuration.theme);
   });
 
   serializeAndRenderState();
+  scheduleAutoDraw(getState());
 }
 
 export function startWorkout() {
@@ -271,6 +382,10 @@ export function startWorkout() {
 
   const endlessToggle = document.getElementById('endless-mode');
   const endless = endlessToggle ? endlessToggle.checked : getState().configuration.endless;
+  const autoDrawToggle = document.getElementById('auto-draw-enabled');
+  const autoDrawIntervalInput = document.getElementById('auto-draw-interval');
+
+  clearAutoDrawTimer();
 
   suppressNotifications(() => {
     updateConfiguration({ multipliers, theme, endless });
@@ -279,10 +394,22 @@ export function startWorkout() {
     setRoundCompleted(false);
     setLastDrawn([]);
     setStarted(true);
+    const autoDrawEnabled = autoDrawToggle ? autoDrawToggle.checked : getState().configuration.autoDraw.enabled;
+    const rawInterval = autoDrawIntervalInput ? Number.parseFloat(autoDrawIntervalInput.value) : NaN;
+    const intervalMinutes = Number.isFinite(rawInterval) && rawInterval > 0
+      ? rawInterval
+      : getState().configuration.autoDraw.intervalMinutes;
+    updateConfiguration({
+      autoDraw: {
+        enabled: autoDrawEnabled,
+        intervalMinutes
+      }
+    });
   });
 
   populateConfigurationForm(getState());
   renderWorkoutFromState(getState());
+  scheduleAutoDraw(getState());
 }
 
 function handleRestoredState(restored) {
@@ -298,7 +425,11 @@ function handleRestoredState(restored) {
       configuration: {
         multipliers: restored.configuration?.multipliers ?? defaultMultipliers,
         endless: restored.configuration?.endless ?? false,
-        theme
+        theme,
+        autoDraw: restored.configuration?.autoDraw ?? {
+          enabled: false,
+          intervalMinutes: defaultAutoDrawIntervalMinutes
+        }
       }
     },
     { silent: true }
@@ -310,6 +441,7 @@ function handleRestoredState(restored) {
 
   if (getState().started) {
     renderWorkoutFromState(getState());
+    ensureAutoDrawTimer(getState());
   } else {
     showConfigurationScreen();
   }
@@ -329,7 +461,11 @@ export function initializeApp() {
       configuration: {
         multipliers: persisted.configuration?.multipliers ?? defaultMultipliers,
         endless: persisted.configuration?.endless ?? false,
-        theme
+        theme,
+        autoDraw: persisted.configuration?.autoDraw ?? {
+          enabled: false,
+          intervalMinutes: defaultAutoDrawIntervalMinutes
+        }
       }
     },
     { silent: true }
@@ -346,11 +482,15 @@ export function initializeApp() {
     showConfigurationScreen();
   }
 
+  ensureAutoDrawTimer(getState());
+
   subscribe(state => {
     persistState(state);
+    ensureAutoDrawTimer(state);
   });
 
   subscribeToPopState(restored => {
     handleRestoredState(restored);
+    ensureAutoDrawTimer(getState());
   });
 }
