@@ -3,7 +3,7 @@ const path = require('path');
 
 const fileUrl = `file://${path.resolve(__dirname, '../index.html')}`;
 
-async function startWorkoutWithOptions(page, { theme = 'casino', multipliers } = {}) {
+async function startWorkoutWithOptions(page, { theme = 'casino', multipliers, endless = false } = {}) {
   if (multipliers) {
     for (const [suit, value] of Object.entries(multipliers)) {
       await page.selectOption(`#multiplier-${suit}`, String(value));
@@ -12,6 +12,10 @@ async function startWorkoutWithOptions(page, { theme = 'casino', multipliers } =
 
   if (theme) {
     await page.check(`input[name="theme"][value="${theme}"]`);
+  }
+
+  if (endless) {
+    await page.check('#endless-mode');
   }
 
   await page.click('#start-workout');
@@ -206,6 +210,47 @@ test.describe('Deck of Gains app', () => {
     expect(result.remaining).toBe(0);
   });
 
+  test('endless mode keeps drawing four cards when eight remain', async ({ page }) => {
+    await startWorkoutWithOptions(page, {
+      theme: 'casino',
+      endless: true,
+      multipliers: { hearts: 1, spades: 1, diamonds: 1, clubs: 1 }
+    });
+
+    await setDeck(page, [
+      { suit: 'hearts', number: 2 },
+      { suit: 'spades', number: 3 },
+      { suit: 'diamonds', number: 4 },
+      { suit: 'clubs', number: 5 },
+      { suit: 'hearts', number: 6 },
+      { suit: 'spades', number: 7 },
+      { suit: 'diamonds', number: 8 },
+      { suit: 'clubs', number: 9 }
+    ]);
+
+    await page.evaluate(() => {
+      roundCompleted = true;
+    });
+
+    const result = await withPatchedRandom(page, 0, async () => {
+      return page.evaluate(() => {
+        const drawn = doDrawCards();
+        return {
+          drawn: drawn.map(card => `${card.suit}-${card.number}`),
+          remaining: deck.length
+        };
+      });
+    });
+
+    expect(result.drawn).toEqual([
+      'hearts-2',
+      'spades-3',
+      'diamonds-4',
+      'clubs-5'
+    ]);
+    expect(result.remaining).toBe(4);
+  });
+
   test('drawCards updates the UI, totals, and round state', async ({ page }) => {
     await startWorkoutWithOptions(page, {
       theme: 'casino',
@@ -315,5 +360,63 @@ test.describe('Deck of Gains app', () => {
     expect(state.deckSize).toBe(0);
     expect(state.drawButtonDisplay).toBe('none');
     expect(state.newSetLabel).toBe('New Set');
+  });
+
+  test('endless mode removes the round limit and reshuffles after the deck is depleted', async ({ page }) => {
+    await startWorkoutWithOptions(page, {
+      theme: 'casino',
+      endless: true,
+      multipliers: { hearts: 1, spades: 1, diamonds: 1, clubs: 1 }
+    });
+
+    await setDeck(page, [
+      { suit: 'hearts', number: 2 },
+      { suit: 'spades', number: 3 },
+      { suit: 'diamonds', number: 4 },
+      { suit: 'clubs', number: 5 }
+    ]);
+
+    await page.evaluate(() => {
+      roundCompleted = false;
+      roundNumber = 1;
+    });
+
+    await withPatchedRandom(page, 0, async () => {
+      await page.evaluate(() => {
+        drawCards();
+      });
+    });
+
+    await expect(page.locator('#round-title')).toHaveText('Round 1');
+
+    const firstDrawState = await page.evaluate(() => ({
+      deckSize: deck.length,
+      roundNumber,
+      drawButtonDisplay: document.getElementById('draw-button').style.display || ''
+    }));
+
+    const instructionsAfterFirstDraw = await page.locator('#instructions p').allTextContents();
+    expect(instructionsAfterFirstDraw[1]).toBe('Complete a 50 yard sprint.');
+    await expect(page.locator('#instructions button')).toHaveCount(0);
+
+    expect(firstDrawState.deckSize).toBe(0);
+    expect(firstDrawState.roundNumber).toBe(2);
+    expect(firstDrawState.drawButtonDisplay).not.toBe('none');
+
+    await withPatchedRandom(page, 0, async () => {
+      await page.evaluate(() => {
+        drawCards();
+      });
+    });
+
+    await expect(page.locator('#round-title')).toHaveText('Round 2');
+
+    const secondDrawState = await page.evaluate(() => ({
+      deckSize: deck.length,
+      hasNewSetButton: Boolean(document.querySelector('#instructions button'))
+    }));
+
+    expect(secondDrawState.deckSize).toBe(48);
+    expect(secondDrawState.hasNewSetButton).toBe(false);
   });
 });
