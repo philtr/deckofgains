@@ -11,6 +11,32 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
+      - name: Cache Playwright system dependencies
+        uses: awalsh128/cache-apt-pkgs-action@v1
+        with:
+          packages: >-
+            libatk-bridge2.0-0
+            libatk1.0-0
+            libcups2
+            libdrm2
+            libgbm1
+            libgtk-3-0
+            libnspr4
+            libnss3
+            libxcb1
+            libxcomposite1
+            libxdamage1
+            libxfixes3
+            libxkbcommon0
+            libxrandr2
+            libpango-1.0-0
+            libpangocairo-1.0-0
+            libx11-xcb1
+            libxshmfence1
+            xdg-utils
+            libasound2
+            libglib2.0-0
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
@@ -20,7 +46,7 @@ jobs:
         run: npm ci
 
       - name: Install Playwright browsers
-        run: npx playwright install --with-deps
+        run: npx playwright install
 
       - name: Run Playwright tests
         run: npm test
