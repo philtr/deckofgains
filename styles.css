@@ -102,6 +102,29 @@ body {
 .theme-option input[type="radio"] {
   transform: scale(1.2);
 }
+
+.mode-option {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  margin-top: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.15);
+  color: inherit;
+}
+
+.mode-option-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mode-option input[type="checkbox"] {
+  transform: scale(1.2);
+  accent-color: #f6f1a1;
+}
 #app {
   text-align: center;
   width: 100%;
@@ -218,4 +241,17 @@ body.rugged .multiplier-option select {
 
 body.rugged .theme-option span {
   color: #ffffff;
+}
+
+body.rugged .mode-option {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 69, 0, 0.4);
+}
+
+body.rugged .mode-option-text .label-subtitle {
+  color: rgba(255, 255, 255, 0.75);
+}
+
+body.rugged .mode-option input[type="checkbox"] {
+  accent-color: #ff4500;
 }

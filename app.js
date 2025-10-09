@@ -23,7 +23,8 @@ const defaultMultipliers = {
 
 let configuration = {
   multipliers: { ...defaultMultipliers },
-  theme: 'casino'
+  theme: 'casino',
+  endless: false
 };
 
 let roundCompleted = false;
@@ -41,6 +42,7 @@ function initializeApp() {
   applyRuggedTheme();
   configuration.theme = document.body.classList.contains('rugged') ? 'rugged' : 'casino';
   configuration.multipliers = { ...defaultMultipliers };
+  configuration.endless = false;
   initializeConfigurationScreen();
 }
 
@@ -138,7 +140,12 @@ function drawCards() {
   instruction.textContent = exerciseInstructions;
   instructionsDiv.appendChild(instruction);
 
-  if (deck.length === 0) {
+  if (configuration.endless) {
+    const sprintInstruction = document.createElement("p");
+    sprintInstruction.textContent = "Complete a 50 yard sprint.";
+    instructionsDiv.appendChild(sprintInstruction);
+    drawButton.style.display = "";
+  } else if (deck.length === 0) {
     const sprintInstruction = document.createElement("p");
     sprintInstruction.textContent = "Complete 2 sprints of 50 yards each.";
     instructionsDiv.appendChild(sprintInstruction);
@@ -161,7 +168,12 @@ function drawCards() {
 
 function updateRoundTitle() {
   const roundTitle = document.getElementById("round-title");
-  roundTitle.textContent = `Round ${roundNumber} of ${totalRounds}`;
+  if (!roundTitle) {
+    return;
+  }
+
+  const baseRoundLabel = `Round ${roundNumber}`;
+  roundTitle.textContent = configuration.endless ? baseRoundLabel : `${baseRoundLabel} of ${totalRounds}`;
 }
 
 function applyRuggedTheme() {
@@ -198,6 +210,11 @@ function initializeConfigurationScreen() {
     themeInput.checked = true;
   }
 
+  const endlessToggle = document.getElementById('endless-mode');
+  if (endlessToggle) {
+    endlessToggle.checked = Boolean(configuration.endless);
+  }
+
   const themeInputs = document.querySelectorAll('input[name="theme"]');
   themeInputs.forEach(input => {
     input.addEventListener('change', onThemeChange);
@@ -227,10 +244,13 @@ function startWorkout() {
 
   const selectedThemeInput = document.querySelector('input[name="theme"]:checked');
   const theme = selectedThemeInput ? selectedThemeInput.value : configuration.theme;
+  const endlessToggle = document.getElementById('endless-mode');
+  const endless = endlessToggle ? endlessToggle.checked : configuration.endless;
 
   configuration = {
     multipliers,
-    theme
+    theme,
+    endless
   };
 
   applyTheme(theme);
