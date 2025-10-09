@@ -2,12 +2,105 @@ body {
   display: flex;
   justify-content: center;
   align-items: center;
-  height: 100vh;
-  margin: 0 25px;
+  min-height: 100vh;
+  margin: 0;
+  padding: 32px clamp(16px, 5vw, 32px);
+  padding-top: calc(env(safe-area-inset-top, 0px) + 32px);
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 32px);
+  box-sizing: border-box;
   font-family: system-ui, Arial, sans-serif;
   color: #FFFFFF;
   background-color: #0B6623; /* Dark green to resemble a poker table */
   background-image: radial-gradient(circle at center, #0E7C3A, #0B6623);
+}
+
+#configuration-screen {
+  width: 100%;
+  max-width: 720px;
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 16px;
+  padding: 32px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  text-align: center;
+}
+
+.configuration-subtitle {
+  margin: 0;
+  font-size: 1.1rem;
+  opacity: 0.9;
+}
+
+#configuration-form {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.configuration-section {
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 12px;
+  padding: 16px 20px;
+  text-align: left;
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.configuration-section legend {
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 0 6px;
+}
+
+.multiplier-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.multiplier-option {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 10px;
+  padding: 16px;
+  color: inherit;
+}
+
+.label-title {
+  font-weight: 700;
+}
+
+.label-subtitle {
+  font-size: 0.85rem;
+  opacity: 0.85;
+}
+
+.multiplier-option select {
+  margin-top: 12px;
+  padding: 10px 12px;
+  font-size: 1rem;
+  border-radius: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.25);
+  font-weight: 600;
+}
+
+.theme-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-right: 20px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.theme-option input[type="radio"] {
+  transform: scale(1.2);
 }
 #app {
   text-align: center;
@@ -46,6 +139,17 @@ button {
   padding: 10px 20px;
   font-size: 1.5rem;
   cursor: pointer;
+  border-radius: 8px;
+  border: none;
+  background: #f6f1a1;
+  color: #064420;
+  font-weight: 700;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
 }
 @media only screen and (orientation: landscape) {
   #drawn-cards {
@@ -89,4 +193,29 @@ body.rugged {
     border-radius: 5px;
     border: 0;
   }
+}
+
+body.rugged #configuration-screen {
+  background: rgba(0, 0, 0, 0.4);
+  border: 2px solid rgba(255, 69, 0, 0.65);
+}
+
+body.rugged .configuration-section {
+  border-color: rgba(255, 255, 255, 0.35);
+  background: rgba(0, 0, 0, 0.35);
+}
+
+body.rugged .multiplier-option {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 69, 0, 0.4);
+}
+
+body.rugged .multiplier-option select {
+  background: rgba(34, 34, 34, 0.85);
+  color: #ffffff;
+  border-color: rgba(255, 69, 0, 0.6);
+}
+
+body.rugged .theme-option span {
+  color: #ffffff;
 }

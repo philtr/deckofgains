@@ -11,18 +11,79 @@
     <link href="https://fonts.googleapis.com/css2?family=Black+Ops+One&display=swap" rel="stylesheet">
     <title>Deck of Gains</title>
   </head>
-  <body onload="applyRuggedTheme()">
-    <div id="app" class="">
+  <body onload="initializeApp()">
+    <div id="configuration-screen">
+      <h1>Deck of Gains</h1>
+      <p class="configuration-subtitle">Customize your workout before the first draw.</p>
+      <form id="configuration-form">
+        <fieldset class="configuration-section">
+          <legend>Exercise Multipliers</legend>
+          <div class="multiplier-grid">
+            <label class="multiplier-option" for="multiplier-hearts">
+              <span class="label-title">Hearts</span>
+              <span class="label-subtitle">Jumping Jacks</span>
+              <select id="multiplier-hearts">
+                <option value="1">1×</option>
+                <option value="2">2×</option>
+                <option value="3">3×</option>
+                <option value="4">4×</option>
+              </select>
+            </label>
+            <label class="multiplier-option" for="multiplier-spades">
+              <span class="label-title">Spades</span>
+              <span class="label-subtitle">Squats</span>
+              <select id="multiplier-spades">
+                <option value="1">1×</option>
+                <option value="2">2×</option>
+                <option value="3">3×</option>
+                <option value="4">4×</option>
+              </select>
+            </label>
+            <label class="multiplier-option" for="multiplier-diamonds">
+              <span class="label-title">Diamonds</span>
+              <span class="label-subtitle">Pushups</span>
+              <select id="multiplier-diamonds">
+                <option value="1">1×</option>
+                <option value="2">2×</option>
+                <option value="3">3×</option>
+                <option value="4">4×</option>
+              </select>
+            </label>
+            <label class="multiplier-option" for="multiplier-clubs">
+              <span class="label-title">Clubs</span>
+              <span class="label-subtitle">Abs</span>
+              <select id="multiplier-clubs">
+                <option value="1">1×</option>
+                <option value="2">2×</option>
+                <option value="3">3×</option>
+                <option value="4">4×</option>
+              </select>
+            </label>
+          </div>
+        </fieldset>
+
+        <fieldset class="configuration-section">
+          <legend>Theme</legend>
+          <label class="theme-option">
+            <input type="radio" name="theme" value="casino" checked>
+            <span>Casino</span>
+          </label>
+          <label class="theme-option">
+            <input type="radio" name="theme" value="rugged">
+            <span>Rugged</span>
+          </label>
+        </fieldset>
+
+        <button type="button" id="start-workout" onclick="startWorkout()">Start Workout</button>
+      </form>
+    </div>
+
+    <div id="app" class="" style="display: none;">
       <h1 id="round-title">Deck of Gains</h1>
       <div id="drawn-cards"></div>
       <button id="draw-button" onclick="drawCards()">Draw Cards</button>
       <div id="instructions"></div>
     </div>
     <script src="app.js"></script>
-
-    <script>
-    // Initialize the deck on first load
-    initializeDeck();
-    </script>
   </body>
 </html>
