@@ -210,6 +210,47 @@ test.describe('Deck of Gains app', () => {
     expect(result.remaining).toBe(0);
   });
 
+  test('endless mode keeps drawing four cards when eight remain', async ({ page }) => {
+    await startWorkoutWithOptions(page, {
+      theme: 'casino',
+      endless: true,
+      multipliers: { hearts: 1, spades: 1, diamonds: 1, clubs: 1 }
+    });
+
+    await setDeck(page, [
+      { suit: 'hearts', number: 2 },
+      { suit: 'spades', number: 3 },
+      { suit: 'diamonds', number: 4 },
+      { suit: 'clubs', number: 5 },
+      { suit: 'hearts', number: 6 },
+      { suit: 'spades', number: 7 },
+      { suit: 'diamonds', number: 8 },
+      { suit: 'clubs', number: 9 }
+    ]);
+
+    await page.evaluate(() => {
+      roundCompleted = true;
+    });
+
+    const result = await withPatchedRandom(page, 0, async () => {
+      return page.evaluate(() => {
+        const drawn = doDrawCards();
+        return {
+          drawn: drawn.map(card => `${card.suit}-${card.number}`),
+          remaining: deck.length
+        };
+      });
+    });
+
+    expect(result.drawn).toEqual([
+      'hearts-2',
+      'spades-3',
+      'diamonds-4',
+      'clubs-5'
+    ]);
+    expect(result.remaining).toBe(4);
+  });
+
   test('drawCards updates the UI, totals, and round state', async ({ page }) => {
     await startWorkoutWithOptions(page, {
       theme: 'casino',

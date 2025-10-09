@@ -81,7 +81,12 @@ function getCardValue(number) {
 }
 
 function doDrawCards() {
-  let cardCount = (deck.length <= 8) ? deck.length : (roundCompleted ? 4 : 4);
+  let cardCount;
+  if (configuration.endless) {
+    cardCount = Math.min(4, deck.length);
+  } else {
+    cardCount = deck.length <= 8 ? deck.length : 4;
+  }
   let cards = [];
   for (let i = 0; i < cardCount; i++) {
     const cardIndex = Math.floor(Math.random() * deck.length);
