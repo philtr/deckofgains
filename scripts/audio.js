@@ -5,7 +5,8 @@ function getAudioContext() {
     return audioContext;
   }
 
-  const AudioContextConstructor = window.AudioContext || window.webkitAudioContext;
+  const AudioContextConstructor =
+    window.AudioContext || window.webkitAudioContext;
   if (!AudioContextConstructor) {
     return null;
   }
@@ -15,14 +16,14 @@ function getAudioContext() {
 }
 
 function resumeIfSuspended(ctx) {
-  if (!ctx || typeof ctx.resume !== 'function') {
+  if (!ctx || typeof ctx.resume !== "function") {
     return;
   }
 
   try {
-    if (ctx.state === 'suspended') {
+    if (ctx.state === "suspended") {
       const resumeResult = ctx.resume();
-      if (resumeResult && typeof resumeResult.catch === 'function') {
+      if (resumeResult && typeof resumeResult.catch === "function") {
         resumeResult.catch(() => {});
       }
     }
@@ -33,6 +34,8 @@ function resumeIfSuspended(ctx) {
 
 function playWhoosh(ctx, when = ctx.currentTime) {
   const duration = 0.45;
+  const releaseDuration = 0.2;
+  const startTime = Math.max(when, ctx.currentTime);
   const buffer = ctx.createBuffer(1, ctx.sampleRate * duration, ctx.sampleRate);
   const data = buffer.getChannelData(0);
   for (let i = 0; i < data.length; i += 1) {
@@ -44,30 +47,40 @@ function playWhoosh(ctx, when = ctx.currentTime) {
   source.buffer = buffer;
 
   const filter = ctx.createBiquadFilter();
-  filter.type = 'bandpass';
-  filter.frequency.setValueAtTime(900, ctx.currentTime);
+  filter.type = "bandpass";
+  filter.frequency.setValueAtTime(900, startTime);
 
   const gain = ctx.createGain();
-  gain.gain.setValueAtTime(0.0001, ctx.currentTime);
-  gain.gain.exponentialRampToValueAtTime(0.5, ctx.currentTime + 0.05);
-  gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + duration);
+  const attackTime = startTime + 0.05;
+  const releaseTime = startTime + Math.min(duration, releaseDuration);
+  gain.gain.setValueAtTime(0.0001, startTime);
+  gain.gain.exponentialRampToValueAtTime(0.5, attackTime);
+  gain.gain.exponentialRampToValueAtTime(0.0001, releaseTime);
 
   source.connect(filter);
   filter.connect(gain);
   gain.connect(ctx.destination);
 
-  const startTime = Math.max(when, ctx.currentTime);
   source.start(startTime);
   source.stop(startTime + duration);
+
+  return {
+    startTime,
+    attackTime,
+    releaseTime,
+  };
 }
 
 export function playDrawSound(options = {}) {
-  const countCandidate = typeof options === 'number' ? options : options?.count;
-  const plays = Number.isFinite(countCandidate) ? Math.max(0, Math.round(countCandidate)) : 0;
+  const countCandidate = typeof options === "number" ? options : options?.count;
+  const plays = Number.isFinite(countCandidate)
+    ? Math.max(0, Math.round(countCandidate))
+    : 0;
 
-  window.__deckOfGainsLastSound = 'whoosh';
+  window.__deckOfGainsLastSound = "whoosh";
   window.__deckOfGainsLastSoundPlayCount = plays;
   window.__deckOfGainsLastSoundSchedule = [];
+  window.__deckOfGainsLastSoundEnvelope = [];
 
   const ctx = getAudioContext();
   if (!ctx) {
@@ -80,12 +93,22 @@ export function playDrawSound(options = {}) {
     const baseTime = ctx.currentTime;
     const spacingSeconds = 0.15;
     const scheduledTimes = [];
+    const envelopes = [];
     for (let i = 0; i < plays; i += 1) {
       const when = baseTime + i * spacingSeconds;
-      playWhoosh(ctx, when);
-      scheduledTimes.push(Number((when - baseTime).toFixed(4)));
+      const envelope = playWhoosh(ctx, when);
+      if (envelope) {
+        const startOffset = Number((envelope.startTime - baseTime).toFixed(4));
+        scheduledTimes.push(startOffset);
+        envelopes.push({
+          start: startOffset,
+          attack: Number((envelope.attackTime - baseTime).toFixed(4)),
+          release: Number((envelope.releaseTime - baseTime).toFixed(4)),
+        });
+      }
     }
     window.__deckOfGainsLastSoundSchedule = scheduledTimes;
+    window.__deckOfGainsLastSoundEnvelope = envelopes;
   } catch (error) {
     // Audio playback errors should not interrupt gameplay.
   }
