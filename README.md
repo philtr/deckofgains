@@ -32,7 +32,7 @@ Activate the **Rugged Theme** and prove you’re ready to enter the tribe of leg
 3. Hit "Draw Cards" and let the pain begin.
 4. Once the deck is done, hit "New Set" to start over with the same theme and settings—or collapse in glory.
 5. Want to switch it up? Add `?theme=plain` for the minimal look or `?theme=rugged` for the warrior’s playground (the legacy `?rugged=true` still works).
-6. Your configuration *and* active workout are mirrored in the URL, so refreshing the page or sharing the link drops you—and your unsuspecting friends—right back into the current round. Suits are shortened to `h/s/d/c` codes to keep those links lean, invalid card values are ignored when restoring state, and auto-draw resumes from the `autoRemainingSeconds` value when present.
+6. Your configuration *and* active workout are mirrored in the URL, so refreshing the page or sharing the link drops you—and your unsuspecting friends—right back into the current round. Suits are shortened to `h/s/d/c` codes to keep those links lean, invalid card values are ignored when restoring state, auto-draw resumes from the `autoRemainingSeconds` value when present, and your latest configuration is cached locally so it comes back on a plain reload (URL settings still win).
 
 To run it locally with Node:
 

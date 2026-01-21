@@ -149,6 +149,81 @@ test.describe("Deck of Gains app", () => {
     await expect(page.locator("#auto-draw-seconds")).toHaveValue("30");
   });
 
+  test("restores configuration from localStorage when URL has no configuration params", async ({
+    page,
+  }) => {
+    await page.addInitScript((storedConfig) => {
+      window.localStorage.setItem(
+        "deckOfGains:configuration",
+        JSON.stringify(storedConfig),
+      );
+    }, {
+      multipliers: { hearts: 3, spades: 2, diamonds: 4, clubs: 5 },
+      theme: "plain",
+      endless: true,
+      autoDraw: { enabled: true, intervalSeconds: 95 },
+    });
+
+    await page.goto(baseUrl);
+
+    await expect(page.locator("body")).toHaveAttribute("data-theme", "plain");
+    await expect(
+      page.locator('input[name="theme"][value="plain"]'),
+    ).toBeChecked();
+    await expect(page.locator("#multiplier-hearts")).toHaveValue("3");
+    await expect(page.locator("#multiplier-spades")).toHaveValue("2");
+    await expect(page.locator("#multiplier-diamonds")).toHaveValue("4");
+    await expect(page.locator("#multiplier-clubs")).toHaveValue("5");
+    await expect(page.locator("#endless-mode")).toBeChecked();
+    await expect(page.locator("#auto-draw-enabled")).toBeChecked();
+    await expect(page.locator("#auto-draw-interval-container")).toBeVisible();
+    await expect(page.locator("#auto-draw-minutes")).toHaveValue("1");
+    await expect(page.locator("#auto-draw-seconds")).toHaveValue("35");
+  });
+
+  test("URL configuration overrides localStorage and replaces it", async ({
+    page,
+  }) => {
+    await page.addInitScript((storedConfig) => {
+      window.localStorage.setItem(
+        "deckOfGains:configuration",
+        JSON.stringify(storedConfig),
+      );
+    }, {
+      multipliers: { hearts: 1, spades: 1, diamonds: 1, clubs: 1 },
+      theme: "rugged",
+      endless: false,
+      autoDraw: { enabled: false, intervalSeconds: 150 },
+    });
+
+    const url = new URL(baseUrl);
+    url.searchParams.set("theme", "casino");
+    url.searchParams.set("endless", "1");
+    url.searchParams.set("multipliers", "h-2.s-3.d-4.c-5");
+    url.searchParams.set("auto", "1");
+    url.searchParams.set("autoIntervalSeconds", "90");
+
+    await page.goto(url.toString());
+
+    await expect(page.locator("body")).toHaveAttribute("data-theme", "casino");
+    await expect(page.locator("#endless-mode")).toBeChecked();
+    await expect(page.locator("#auto-draw-enabled")).toBeChecked();
+    await expect(page.locator("#auto-draw-minutes")).toHaveValue("1");
+    await expect(page.locator("#auto-draw-seconds")).toHaveValue("30");
+
+    const stored = await page.evaluate(() => {
+      const raw = window.localStorage.getItem("deckOfGains:configuration");
+      return raw ? JSON.parse(raw) : null;
+    });
+
+    expect(stored).toEqual({
+      multipliers: { hearts: 2, spades: 3, diamonds: 4, clubs: 5 },
+      theme: "casino",
+      endless: true,
+      autoDraw: { enabled: true, intervalSeconds: 90 },
+    });
+  });
+
   test("builds a unique 52 card deck when initializeDeck runs", async ({
     page,
   }) => {

@@ -27,6 +27,7 @@ import {
   setInitialSerialized,
   subscribeToPopState
 } from './persistence.js';
+import { loadStoredConfiguration, storeConfiguration } from './configStorage.js';
 import { playDrawSound } from './audio.js';
 
 const DRAW_BUTTON_DEFAULT_LABEL = 'Draw Cards';
@@ -37,6 +38,75 @@ let autoDrawTimeoutId = null;
 let autoDrawCountdownIntervalId = null;
 let autoDrawNextTriggerAt = null;
 let autoDrawRemainingIntervalId = null;
+let lastStoredConfiguration = null;
+
+function hasConfigurationParams(params) {
+  if (!(params instanceof URLSearchParams)) {
+    return false;
+  }
+
+  return [
+    'theme',
+    'rugged',
+    'endless',
+    'multipliers',
+    'auto',
+    'autoIntervalSeconds',
+    'autoInterval',
+    'autoRemainingSeconds'
+  ].some(param => params.has(param));
+}
+
+function buildConfigurationSnapshot(baseConfiguration, theme) {
+  return {
+    multipliers: baseConfiguration?.multipliers ?? defaultMultipliers,
+    endless: baseConfiguration?.endless ?? false,
+    theme,
+    autoDraw: baseConfiguration?.autoDraw ?? {
+      enabled: false,
+      intervalSeconds: defaultAutoDrawIntervalSeconds
+    }
+  };
+}
+
+function serializeConfiguration(configuration) {
+  const multipliers = suits.reduce((acc, suit) => {
+    acc[suit] = configuration?.multipliers?.[suit] ?? defaultMultipliers[suit];
+    return acc;
+  }, {});
+
+  return JSON.stringify({
+    multipliers,
+    theme: resolveTheme(configuration?.theme),
+    endless: Boolean(configuration?.endless),
+    autoDraw: {
+      enabled: Boolean(configuration?.autoDraw?.enabled),
+      intervalSeconds: Number.parseInt(configuration?.autoDraw?.intervalSeconds, 10)
+    }
+  });
+}
+
+function persistConfigurationIfChanged(configuration) {
+  const serialized = serializeConfiguration(configuration);
+  if (serialized === lastStoredConfiguration) {
+    return;
+  }
+
+  storeConfiguration(configuration);
+  lastStoredConfiguration = serialized;
+}
+
+function resolveConfigurationFromSources({ params, sourceConfiguration, derivedTheme }) {
+  const storedConfiguration = loadStoredConfiguration();
+  const useStored = storedConfiguration && !hasConfigurationParams(params);
+  const baseConfiguration = useStored ? storedConfiguration : sourceConfiguration;
+  const themeCandidate = baseConfiguration?.theme ?? derivedTheme;
+  const theme = resolveTheme(themeCandidate);
+
+  return {
+    configuration: buildConfigurationSnapshot(baseConfiguration, theme)
+  };
+}
 
 function getAutoDrawIntervalElements() {
   return {
@@ -617,29 +687,26 @@ export function startWorkout() {
 function handleRestoredState(restored) {
   const params = new URLSearchParams(window.location.search);
   const derivedTheme = deriveInitialTheme(params);
-  const theme = resolveTheme(restored.configuration?.theme ?? derivedTheme);
+  const { configuration } = resolveConfigurationFromSources({
+    params,
+    sourceConfiguration: restored.configuration,
+    derivedTheme
+  });
 
   setInitialSerialized(params.toString());
 
   replaceState(
     {
       ...restored,
-      configuration: {
-        multipliers: restored.configuration?.multipliers ?? defaultMultipliers,
-        endless: restored.configuration?.endless ?? false,
-        theme,
-        autoDraw: restored.configuration?.autoDraw ?? {
-          enabled: false,
-          intervalSeconds: defaultAutoDrawIntervalSeconds
-        }
-      }
+      configuration
     },
     { silent: true }
   );
 
-  applyTheme(getState().configuration.theme);
+  applyTheme(configuration.theme);
   populateConfigurationForm(getState());
   ensureConfigurationListeners();
+  persistConfigurationIfChanged(getState().configuration);
 
   if (getState().started) {
     renderWorkoutFromState(getState());
@@ -655,28 +722,25 @@ export function initializeApp() {
   const params = new URLSearchParams(window.location.search);
   const persisted = deserializeState(params);
   const derivedTheme = deriveInitialTheme(params);
-  const theme = resolveTheme(persisted.configuration?.theme ?? derivedTheme);
+  const { configuration } = resolveConfigurationFromSources({
+    params,
+    sourceConfiguration: persisted.configuration,
+    derivedTheme
+  });
 
   replaceState(
     {
       ...persisted,
-      configuration: {
-        multipliers: persisted.configuration?.multipliers ?? defaultMultipliers,
-        endless: persisted.configuration?.endless ?? false,
-        theme,
-        autoDraw: persisted.configuration?.autoDraw ?? {
-          enabled: false,
-          intervalSeconds: defaultAutoDrawIntervalSeconds
-        }
-      }
+      configuration
     },
     { silent: true }
   );
 
-  applyTheme(theme);
+  applyTheme(configuration.theme);
   populateConfigurationForm(getState());
   ensureConfigurationListeners();
   setInitialSerialized(params.toString());
+  persistConfigurationIfChanged(getState().configuration);
 
   if (getState().started) {
     renderWorkoutFromState(getState());
@@ -689,6 +753,7 @@ export function initializeApp() {
   subscribe(state => {
     persistState(state);
     ensureAutoDrawTimer(state);
+    persistConfigurationIfChanged(state.configuration);
   });
 
   subscribeToPopState(restored => {
