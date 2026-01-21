@@ -43,6 +43,18 @@ function resolveIntervalSecondsFromParams(params) {
   return defaultAutoDrawIntervalSeconds;
 }
 
+function resolveRemainingSecondsFromParams(params) {
+  const remainingParam = params.get('autoRemainingSeconds');
+  if (remainingParam === null) {
+    return null;
+  }
+  const parsed = Number.parseInt(remainingParam, 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return null;
+  }
+  return parsed;
+}
+
 function encodeSuit(suit) {
   return suitCodes[suit] ?? suit;
 }
@@ -139,7 +151,7 @@ function decodeMultipliers(serialized) {
   }, {});
 }
 
-export function serializeState(state) {
+export function serializeState(state, { autoDrawRemainingSeconds } = {}) {
   const params = new URLSearchParams();
   const theme = resolveTheme(state?.configuration?.theme);
   if (theme) {
@@ -151,6 +163,16 @@ export function serializeState(state) {
 
   if (state?.configuration?.autoDraw?.enabled) {
     params.set('auto', '1');
+  }
+
+  const remainingSeconds = Number.parseInt(autoDrawRemainingSeconds, 10);
+  if (
+    state?.started &&
+    state?.configuration?.autoDraw?.enabled &&
+    Number.isFinite(remainingSeconds) &&
+    remainingSeconds > 0
+  ) {
+    params.set('autoRemainingSeconds', String(remainingSeconds));
   }
 
   const autoIntervalSeconds = Number.parseInt(state?.configuration?.autoDraw?.intervalSeconds, 10);
@@ -181,6 +203,7 @@ export function deserializeState(searchParams) {
     ? searchParams
     : new URLSearchParams(searchParams ?? '');
 
+  const autoDrawRemainingSeconds = resolveRemainingSecondsFromParams(params);
   const configuration = {
     theme: params.get('theme'),
     endless: params.get('endless') === '1',
@@ -204,7 +227,8 @@ export function deserializeState(searchParams) {
     roundNumber,
     roundCompleted,
     deck,
-    lastDrawn
+    lastDrawn,
+    autoDrawRemainingSeconds
   };
 }
 
@@ -217,6 +241,17 @@ export function persistState(state) {
 
   const url = `${window.location.pathname}${search ? `?${search}` : ''}`;
   history.pushState(null, '', url);
+  lastSerialized = search;
+}
+
+export function replaceStateWithAutoDrawRemaining(state, remainingSeconds) {
+  const params = serializeState(state, { autoDrawRemainingSeconds: remainingSeconds });
+  const search = params.toString();
+  if (search === window.location.search.slice(1)) {
+    return;
+  }
+  const url = `${window.location.pathname}${search ? `?${search}` : ''}`;
+  history.replaceState(null, '', url);
   lastSerialized = search;
 }
 

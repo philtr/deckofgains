@@ -22,6 +22,7 @@ import {
 import {
   deserializeState,
   persistState,
+  replaceStateWithAutoDrawRemaining,
   serializeState,
   setInitialSerialized,
   subscribeToPopState
@@ -29,11 +30,13 @@ import {
 import { playDrawSound } from './audio.js';
 
 const DRAW_BUTTON_DEFAULT_LABEL = 'Draw Cards';
+const AUTO_DRAW_REMAINING_UPDATE_MS = 1000;
 
 let configurationListenersInitialized = false;
 let autoDrawTimeoutId = null;
 let autoDrawCountdownIntervalId = null;
 let autoDrawNextTriggerAt = null;
+let autoDrawRemainingIntervalId = null;
 
 function getAutoDrawIntervalElements() {
   return {
@@ -124,6 +127,40 @@ function stopAutoDrawCountdown({ preserveLabel = false } = {}) {
   if (!preserveLabel) {
     resetDrawButtonLabel();
   }
+}
+
+function getAutoDrawRemainingSeconds() {
+  if (!autoDrawNextTriggerAt) {
+    return null;
+  }
+
+  const remainingMs = autoDrawNextTriggerAt - Date.now();
+  const remainingSeconds = Math.max(0, Math.ceil(remainingMs / 1000));
+  return remainingSeconds > 0 ? remainingSeconds : null;
+}
+
+function updateAutoDrawRemainingParam() {
+  const remainingSeconds = getAutoDrawRemainingSeconds();
+  replaceStateWithAutoDrawRemaining(getState(), remainingSeconds);
+}
+
+function stopAutoDrawRemainingPersistence({ preserveParam = false } = {}) {
+  if (autoDrawRemainingIntervalId !== null) {
+    window.clearInterval(autoDrawRemainingIntervalId);
+    autoDrawRemainingIntervalId = null;
+  }
+
+  if (!preserveParam) {
+    replaceStateWithAutoDrawRemaining(getState(), null);
+  }
+}
+
+function startAutoDrawRemainingPersistence() {
+  stopAutoDrawRemainingPersistence({ preserveParam: true });
+  updateAutoDrawRemainingParam();
+  autoDrawRemainingIntervalId = window.setInterval(() => {
+    updateAutoDrawRemainingParam();
+  }, AUTO_DRAW_REMAINING_UPDATE_MS);
 }
 
 function startAutoDrawCountdown(deadline) {
@@ -278,13 +315,14 @@ function ensureConfigurationListeners() {
   configurationListenersInitialized = true;
 }
 
-function clearAutoDrawTimer({ preserveCountdownLabel = false } = {}) {
+function clearAutoDrawTimer({ preserveCountdownLabel = false, preserveRemainingParam = false } = {}) {
   if (autoDrawTimeoutId !== null) {
     window.clearTimeout(autoDrawTimeoutId);
     autoDrawTimeoutId = null;
   }
 
   stopAutoDrawCountdown({ preserveLabel: preserveCountdownLabel });
+  stopAutoDrawRemainingPersistence({ preserveParam: preserveRemainingParam });
 }
 
 function shouldContinueAutoDraw(state) {
@@ -309,15 +347,25 @@ function shouldContinueAutoDraw(state) {
   return true;
 }
 
-function scheduleAutoDraw(state) {
+function scheduleAutoDraw(state, { remainingSeconds } = {}) {
   const canContinue = shouldContinueAutoDraw(state);
-  clearAutoDrawTimer({ preserveCountdownLabel: canContinue });
+  clearAutoDrawTimer({
+    preserveCountdownLabel: canContinue,
+    preserveRemainingParam: canContinue
+  });
 
   if (!canContinue) {
     return;
   }
 
-  const intervalSeconds = Number.parseInt(state.configuration.autoDraw.intervalSeconds, 10);
+  const configuredSeconds = Number.parseInt(state.configuration.autoDraw.intervalSeconds, 10);
+  const fallbackSeconds = Number.isFinite(configuredSeconds) && configuredSeconds > 0
+    ? configuredSeconds
+    : defaultAutoDrawIntervalSeconds;
+  const requestedRemaining = Number.parseInt(remainingSeconds, 10);
+  const intervalSeconds = Number.isFinite(requestedRemaining) && requestedRemaining > 0
+    ? Math.min(fallbackSeconds, requestedRemaining)
+    : fallbackSeconds;
   const intervalMs = intervalSeconds * 1000;
   const deadline = Date.now() + intervalMs;
 
@@ -333,16 +381,17 @@ function scheduleAutoDraw(state) {
   }, intervalMs);
 
   startAutoDrawCountdown(deadline);
+  startAutoDrawRemainingPersistence();
 }
 
-function ensureAutoDrawTimer(state) {
+function ensureAutoDrawTimer(state, { remainingSeconds } = {}) {
   if (!shouldContinueAutoDraw(state)) {
     clearAutoDrawTimer();
     return;
   }
 
   if (autoDrawTimeoutId === null) {
-    scheduleAutoDraw(state);
+    scheduleAutoDraw(state, { remainingSeconds });
   }
 }
 
@@ -635,7 +684,7 @@ export function initializeApp() {
     showConfigurationScreen();
   }
 
-  ensureAutoDrawTimer(getState());
+  ensureAutoDrawTimer(getState(), { remainingSeconds: persisted.autoDrawRemainingSeconds });
 
   subscribe(state => {
     persistState(state);
@@ -644,6 +693,6 @@ export function initializeApp() {
 
   subscribeToPopState(restored => {
     handleRestoredState(restored);
-    ensureAutoDrawTimer(getState());
+    ensureAutoDrawTimer(getState(), { remainingSeconds: restored.autoDrawRemainingSeconds });
   });
 }

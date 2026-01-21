@@ -408,6 +408,64 @@ test.describe("Deck of Gains app", () => {
     expect(buttonText).toMatch(/Draw Cards \(\d+:\d{2}\)/);
   });
 
+  test("auto draw resumes using the remaining seconds from the URL", async ({
+    page,
+  }) => {
+    const url = new URL(baseUrl);
+    url.searchParams.set("started", "1");
+    url.searchParams.set("round", "1");
+    url.searchParams.set("completed", "0");
+    url.searchParams.set("theme", "casino");
+    url.searchParams.set("auto", "1");
+    url.searchParams.set("autoIntervalSeconds", "10");
+    url.searchParams.set("autoRemainingSeconds", "1");
+    url.searchParams.set("multipliers", "h-1.s-1.d-1.c-1");
+    url.searchParams.set("deck", "h-1.s-2.d-3.c-4.h-5.s-6.d-7.c-8.h-9");
+
+    await page.goto(url.toString());
+
+    await page.waitForFunction(() => {
+      return document.querySelectorAll("#drawn-cards .card").length === 4;
+    });
+
+    const state = await page.evaluate(() => ({
+      roundNumber,
+      roundCompleted,
+    }));
+
+    expect(state.roundNumber).toBe(2);
+    expect(state.roundCompleted).toBe(true);
+  });
+
+  test("auto draw updates the remaining seconds in the URL over time", async ({
+    page,
+  }) => {
+    await startWorkoutWithOptions(page, {
+      theme: "casino",
+      multipliers: { hearts: 1, spades: 1, diamonds: 1, clubs: 1 },
+      autoDraw: { enabled: true, intervalSeconds: 12 },
+    });
+
+    const initialRemaining = await page.evaluate(() => {
+      return new URLSearchParams(window.location.search).get(
+        "autoRemainingSeconds",
+      );
+    });
+    expect(initialRemaining).not.toBeNull();
+
+    await page.waitForTimeout(6000);
+
+    const laterRemaining = await page.evaluate(() => {
+      return new URLSearchParams(window.location.search).get(
+        "autoRemainingSeconds",
+      );
+    });
+
+    expect(Number.parseInt(laterRemaining, 10)).toBeLessThan(
+      Number.parseInt(initialRemaining, 10),
+    );
+  });
+
   test("drawCards updates the UI, totals, and round state", async ({
     page,
   }) => {
