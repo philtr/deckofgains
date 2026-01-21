@@ -771,6 +771,29 @@ test.describe("Deck of Gains app", () => {
     expect(secondDrawState.hasNewSetButton).toBe(false);
   });
 
+  test("ignores invalid card values when restoring from the URL", async ({
+    page,
+  }) => {
+    const url = new URL(baseUrl);
+    url.searchParams.set("started", "1");
+    url.searchParams.set("round", "2");
+    url.searchParams.set("completed", "1");
+    url.searchParams.set("theme", "plain");
+    url.searchParams.set("multipliers", "h-1.s-1.d-1.c-1");
+    url.searchParams.set("deck", "h-1.h-0.h-14.s--2.d-13");
+    url.searchParams.set("draw", "c-7.c-99");
+
+    await page.goto(url.toString());
+
+    const restored = await page.evaluate(() => ({
+      deck: deck.map((card) => `${card.suit}-${card.number}`),
+      lastDrawn: lastDrawn.map((card) => `${card.suit}-${card.number}`),
+    }));
+
+    expect(restored.deck).toEqual(["hearts-1", "diamonds-13"]);
+    expect(restored.lastDrawn).toEqual(["clubs-7"]);
+  });
+
   test("persists workout progress in the URL and restores it on reload", async ({
     page,
   }) => {

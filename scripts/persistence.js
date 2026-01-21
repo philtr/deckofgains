@@ -80,6 +80,9 @@ function decodeCard(token) {
   if (!suit || !Number.isFinite(number)) {
     return null;
   }
+  if (number < 1 || number > 13) {
+    return null;
+  }
   return { suit, number };
 }
 
