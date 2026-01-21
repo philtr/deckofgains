@@ -34,6 +34,14 @@ Activate the **Rugged Theme** and prove you’re ready to enter the tribe of leg
 5. Want to go **RUGGED**? Add `?theme=rugged` to the URL (or the legacy `?rugged=true`) and watch the screen turn into a warrior’s playground.
 6. Your configuration *and* active workout are mirrored in the URL, so refreshing the page or sharing the link drops you—and your unsuspecting friends—right back into the current round. Suits are shortened to `h/s/d/c` codes to keep those links lean.
 
+To run it locally with Node:
+
+```sh
+npm run dev
+```
+
+Then open `http://127.0.0.1:8000/index.html`.
+
 ## Auto-Draw & Sound FX 🎧
 - Toggle **Auto-Draw** from the configuration screen to automatically draw the next hand for you. The controls live inside the **Mode** section and the interval picker only appears when auto-draw is enabled, letting you set minutes and seconds (defaulting to 2 minutes 30 seconds) without fussing over decimals.
 - A live countdown appears on the **Draw Cards** button whenever auto-draw is active, so you know exactly when the next hand will hit.

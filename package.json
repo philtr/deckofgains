@@ -4,6 +4,7 @@
   "description": "Welcome to **Deck of Gains**, the app that turns a deck of cards into your personal trainer. Forget spreadsheets and boring routines—this is where fitness meets chaos and card tables. Whether you’re here to spice up your workouts, dominate your fitness tribe, or just prove how rugged you are, **Deck of Gains** has you covered.",
   "main": "app.js",
   "scripts": {
+    "dev": "node scripts/dev-server.js",
     "test": "playwright test"
   },
   "keywords": [],
