@@ -225,6 +225,57 @@ button {
   }
 }
 
+body[data-theme="plain"] {
+  color: #1f2933;
+  background-color: #f2f2f2;
+  background-image: linear-gradient(180deg, #ffffff 0%, #f2f2f2 100%);
+
+  #configuration-screen {
+    background: #ffffff;
+    box-shadow: 0 12px 24px rgba(15, 23, 42, 0.08);
+
+    .configuration-section {
+      border-color: #e5e7eb;
+      background: #f8fafc;
+    }
+
+    .multiplier-grid {
+      .multiplier-option {
+        background: #ffffff;
+        border-color: #d1d5db;
+      }
+    }
+
+    .mode-option {
+      border-color: #d1d5db;
+      background: #ffffff;
+    }
+
+    .auto-draw-interval-field input[type="number"] {
+      background: #ffffff;
+      border-color: #d1d5db;
+      color: #1f2933;
+    }
+  }
+
+  .theme-option span {
+    color: #1f2933;
+  }
+
+  button {
+    background: #111827;
+    color: #f9fafb;
+
+    &:hover {
+      box-shadow: 0 6px 18px rgba(15, 23, 42, 0.25);
+    }
+  }
+
+  .mode-option input[type="checkbox"] {
+    accent-color: #111827;
+  }
+}
+
 body[data-theme="casino"] {
   color: #ffffff;
   background-color: #0b6623;

@@ -31,7 +31,7 @@ Activate the **Rugged Theme** and prove you’re ready to enter the tribe of leg
 2. **Add to Home Screen** for a full-screen experience (especially on iOS).
 3. Hit "Draw Cards" and let the pain begin.
 4. Once the deck is done, hit "New Set" to start over with the same theme and settings—or collapse in glory.
-5. Want to go **RUGGED**? Add `?theme=rugged` to the URL (or the legacy `?rugged=true`) and watch the screen turn into a warrior’s playground.
+5. Want to switch it up? Add `?theme=plain` for the minimal look or `?theme=rugged` for the warrior’s playground (the legacy `?rugged=true` still works).
 6. Your configuration *and* active workout are mirrored in the URL, so refreshing the page or sharing the link drops you—and your unsuspecting friends—right back into the current round. Suits are shortened to `h/s/d/c` codes to keep those links lean.
 
 To run it locally with Node:
@@ -56,6 +56,7 @@ Fitness doesn’t have to mean monotonous reps and boring routines. It should fe
 - **Short on time?** Sprint harder.
 - **Don’t skip abs.** You’ll regret it later.
 - **Feeling heroic?** Rugged Theme is your calling.
+- **Need focus?** Plain Theme keeps things clean and calm.
 - **Invite friends.** Nothing says "bonding" like screaming through burpees together.
 
 ## License 📜

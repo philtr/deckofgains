@@ -216,6 +216,12 @@ test.describe("Deck of Gains app", () => {
     let activeTheme = await page.evaluate(() => document.body.dataset.theme);
     expect(activeTheme).toBe("rugged");
 
+    await page.check('input[name="theme"][value="plain"]');
+    await page.waitForFunction(() => document.body.dataset.theme === "plain");
+
+    activeTheme = await page.evaluate(() => document.body.dataset.theme);
+    expect(activeTheme).toBe("plain");
+
     await page.check('input[name="theme"][value="casino"]');
     await page.waitForFunction(() => document.body.dataset.theme === "casino");
 
@@ -854,7 +860,7 @@ test.describe("Deck of Gains app", () => {
   test("drawCards always plays the whoosh sound regardless of theme", async ({
     page,
   }) => {
-    const themes = ["casino", "rugged"];
+    const themes = ["casino", "plain", "rugged"];
 
     for (const theme of themes) {
       await page.goto(baseUrl);

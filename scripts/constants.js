@@ -34,7 +34,7 @@ export const defaultMultipliers = {
 
 export const defaultTheme = 'casino';
 
-export const supportedThemes = new Set([defaultTheme, 'rugged']);
+export const supportedThemes = new Set([defaultTheme, 'plain', 'rugged']);
 
 export const totalRounds = 12;
 
