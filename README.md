@@ -29,10 +29,11 @@ Activate the **Rugged Theme** and prove you’re ready to enter the tribe of leg
 ## How to Use 🛠️
 1. Open the app in your browser.
 2. **Add to Home Screen** for a full-screen experience (especially on iOS).
-3. Hit "Draw Cards" and let the pain begin.
-4. Once the deck is done, hit "New Set" to start over with the same theme and settings—or collapse in glory.
-5. Want to switch it up? Add `?theme=plain` for the minimal look or `?theme=rugged` for the warrior’s playground (the legacy `?rugged=true` still works).
-6. Your configuration *and* active workout are mirrored in the URL, so refreshing the page or sharing the link drops you—and your unsuspecting friends—right back into the current round. Suits are shortened to `h/s/d/c` codes to keep those links lean, invalid card values are ignored when restoring state, auto-draw resumes from the `autoRemainingSeconds` value when present, and your latest configuration is cached locally so it comes back on a plain reload (URL settings still win).
+3. (Optional) Enable **Include Challenge Cards** to shuffle in surprise twists.
+4. Hit "Draw Cards" and let the pain begin.
+5. Once the deck is done, hit "New Set" to start over with the same theme and settings—or collapse in glory.
+6. Want to switch it up? Add `?theme=plain` for the minimal look or `?theme=rugged` for the warrior’s playground (the legacy `?rugged=true` still works).
+7. Your configuration *and* active workout are mirrored in the URL, so refreshing the page or sharing the link drops you—and your unsuspecting friends—right back into the current round. Suits are shortened to `h/s/d/c` codes to keep those links lean, challenge cards are encoded alongside normal cards, invalid card values are ignored when restoring state, auto-draw resumes from the `autoRemainingSeconds` value when present, and your latest configuration is cached locally so it comes back on a plain reload (URL settings still win).
 
 To run it locally with Node:
 
@@ -46,6 +47,16 @@ Then open `http://127.0.0.1:8000/index.html`.
 - Toggle **Auto-Draw** from the configuration screen to automatically draw the next hand for you. The controls live inside the **Mode** section and the interval picker only appears when auto-draw is enabled, letting you set minutes and seconds (defaulting to 2 minutes 30 seconds) without fussing over decimals.
 - A live countdown appears on the **Draw Cards** button whenever auto-draw is active, so you know exactly when the next hand will hit.
 - Every draw now rides the same clean **whoosh** sound effect. Pull four cards and you'll hear four whooshes; pull eight and the audio ramps up to match with each whoosh spaced just enough apart to land distinctly.
+
+## Challenge Cards ⚔️
+Flip on **Include Challenge Cards** to shuffle surprise modifiers into the deck. When one shows up, it rides in the same draw and tweaks the current round. Right now, the twists are:
+- **Double Down**: Double all reps this round.
+- **Iron Boost**: Add 5 reps to every active exercise.
+- **Sprint Surge**: Add one extra 50 yard sprint.
+
+Challenge cards are captured in the URL alongside the normal draw order, so shared links keep the same chaos intact.
+When a challenge card shows up, the draw keeps going until the usual number of standard cards land, so you still get 12 rounds.
+You can also tune how many of each challenge card is shuffled into the deck from the configuration screen.
 
 ## Why This Exists 🤔
 Because working out should be fun. Or at least unpredictable. Or, at the very least, rugged.

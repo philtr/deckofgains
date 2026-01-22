@@ -105,6 +105,61 @@
                 >
               </span>
             </label>
+            <label class="mode-option" for="include-challenge-cards">
+              <input type="checkbox" id="include-challenge-cards" />
+              <span class="mode-option-text">
+                <span class="label-title">Include Challenge Cards</span>
+                <span class="label-subtitle"
+                  >Shuffle in surprise twists that modify each round.</span
+                >
+              </span>
+            </label>
+            <div
+              class="mode-option challenge-card-options is-hidden"
+              id="challenge-card-options"
+            >
+              <div class="mode-option-text">
+                <span class="label-title">Challenge Card Counts</span>
+                <span class="label-subtitle"
+                  >Choose how many of each challenge to shuffle in.</span
+                >
+              </div>
+              <div class="challenge-card-inputs">
+                <label class="challenge-card-field" for="challenge-count-double">
+                  <span class="input-label">Double Down</span>
+                  <input
+                    type="number"
+                    id="challenge-count-double"
+                    min="0"
+                    step="1"
+                    value="1"
+                    inputmode="numeric"
+                  />
+                </label>
+                <label class="challenge-card-field" for="challenge-count-boost">
+                  <span class="input-label">Iron Boost</span>
+                  <input
+                    type="number"
+                    id="challenge-count-boost"
+                    min="0"
+                    step="1"
+                    value="1"
+                    inputmode="numeric"
+                  />
+                </label>
+                <label class="challenge-card-field" for="challenge-count-sprint">
+                  <span class="input-label">Sprint Surge</span>
+                  <input
+                    type="number"
+                    id="challenge-count-sprint"
+                    min="0"
+                    step="1"
+                    value="1"
+                    inputmode="numeric"
+                  />
+                </label>
+              </div>
+            </div>
             <label class="mode-option" for="auto-draw-enabled">
               <input type="checkbox" id="auto-draw-enabled" />
               <span class="mode-option-text">

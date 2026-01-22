@@ -147,6 +147,16 @@ body {
   display: none;
 }
 
+.mode-option.challenge-card-options {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 16px;
+}
+
+.mode-option.challenge-card-options.is-hidden {
+  display: none;
+}
+
 .auto-draw-interval-inputs {
   display: flex;
   gap: 16px;
@@ -170,6 +180,38 @@ body {
 
 .auto-draw-interval-field input[type="number"] {
   width: 110px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  font-weight: 600;
+  font-size: 1rem;
+  background: #ffffff;
+  color: inherit;
+}
+
+.challenge-card-inputs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.challenge-card-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 150px;
+}
+
+.challenge-card-field .input-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #6b7280;
+}
+
+.challenge-card-field input[type="number"] {
+  width: 120px;
   padding: 8px 10px;
   border-radius: 8px;
   border: 1px solid #d1d5db;
@@ -205,6 +247,25 @@ body {
   border-radius: 10px;
   text-align: center;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.card.challenge {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: #fff7ed;
+  border-color: #f59e0b;
+  color: #7c2d12;
+  text-transform: uppercase;
+}
+
+.card.challenge .challenge-title {
+  font-size: 0.8rem;
+  letter-spacing: 0.12em;
+}
+
+.card.challenge .challenge-name {
+  font-size: 1.3rem;
 }
 
 .red {
@@ -290,6 +351,12 @@ body[data-theme="plain"] {
       border-color: #d1d5db;
       color: #1f2933;
     }
+
+    .challenge-card-field input[type="number"] {
+      background: #ffffff;
+      border-color: #d1d5db;
+      color: #1f2933;
+    }
   }
 
   .theme-option span {
@@ -311,6 +378,12 @@ body[data-theme="plain"] {
 
   .site-footer {
     color: rgba(17, 24, 39, 0.65);
+  }
+
+  .card.challenge {
+    background: #fff1db;
+    border-color: #f59e0b;
+    color: #7c2d12;
   }
 }
 
@@ -371,6 +444,12 @@ body[data-theme="casino"] {
       border-color: rgba(255, 255, 255, 0.35);
       color: #ffffff;
     }
+
+    .challenge-card-field input[type="number"] {
+      background: rgba(255, 255, 255, 0.2);
+      border-color: rgba(255, 255, 255, 0.35);
+      color: #ffffff;
+    }
   }
 
   .theme-option span {
@@ -392,6 +471,12 @@ body[data-theme="casino"] {
 
   .site-footer {
     color: rgba(255, 255, 255, 0.7);
+  }
+
+  .card.challenge {
+    background: rgba(246, 241, 161, 0.9);
+    border-color: #fbbf24;
+    color: #3f2b14;
   }
 }
 
@@ -479,6 +564,12 @@ body[data-theme="rugged"] {
       border-color: rgba(255, 69, 0, 0.6);
       color: #ffffff;
     }
+
+    .challenge-card-field input[type="number"] {
+      background: rgba(34, 34, 34, 0.85);
+      border-color: rgba(255, 69, 0, 0.6);
+      color: #ffffff;
+    }
   }
 
   .theme-option span {
@@ -491,5 +582,11 @@ body[data-theme="rugged"] {
 
   .site-footer {
     color: rgba(255, 255, 255, 0.8);
+  }
+
+  .card.challenge {
+    background: rgba(255, 120, 0, 0.2);
+    border-color: rgba(255, 120, 0, 0.85);
+    color: #ffe6c7;
   }
 }

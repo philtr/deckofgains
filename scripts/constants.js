@@ -32,6 +32,34 @@ export const defaultMultipliers = {
   clubs: 2
 };
 
+export const challengeCards = [
+  {
+    id: 'double',
+    name: 'Double Down',
+    description: 'Double all reps this round.',
+    effect: { type: 'multiplier', value: 2 }
+  },
+  {
+    id: 'boost',
+    name: 'Iron Boost',
+    description: 'Add 5 reps to every active exercise.',
+    effect: { type: 'bonus', value: 5 }
+  },
+  {
+    id: 'sprint',
+    name: 'Sprint Surge',
+    description: 'Add one extra 50 yard sprint.',
+    effect: { type: 'sprint', value: 1 }
+  }
+];
+
+export const defaultIncludeChallengeCards = false;
+export const defaultChallengeCounts = Object.freeze({
+  double: 1,
+  boost: 1,
+  sprint: 1
+});
+
 export const defaultTheme = 'casino';
 
 export const supportedThemes = new Set([defaultTheme, 'plain', 'rugged']);
