@@ -88,6 +88,7 @@ function updateRoomParam(roomCode) {
   const url = `${window.location.pathname}${search ? `?${search}` : ''}`;
   history.replaceState(null, '', url);
   setInitialSerialized(params.toString());
+  updateRoomControls(roomCode);
 }
 
 function getRoomInputValue() {
@@ -104,6 +105,35 @@ function setSyncControlsEnabled(enabled) {
   if (groupJoin) {
     groupJoin.style.display = enabled ? '' : 'none';
   }
+  if (enabled) {
+    updateRoomControls(resolveRoomCodeFromLocation());
+  }
+}
+
+function updateRoomControls(roomCode) {
+  const controls = document.querySelector('.group-join-controls');
+  const active = document.getElementById('room-active');
+  const activeName = document.getElementById('room-active-name');
+  const hasRoom = Boolean(roomCode);
+
+  if (controls) {
+    controls.style.display = hasRoom ? 'none' : 'flex';
+  }
+  if (active) {
+    active.style.display = hasRoom ? 'flex' : 'none';
+  }
+  if (activeName) {
+    activeName.textContent = roomCode ?? '';
+  }
+}
+
+function requestRoomJoin() {
+  if (!syncEnabled) {
+    return;
+  }
+  const roomCode = getRoomInputValue();
+  updateRoomParam(roomCode);
+  void syncToRoom(roomCode);
 }
 
 async function syncToRoom(roomCode) {
@@ -468,13 +498,38 @@ function ensureConfigurationListeners() {
 
   const joinRoomButton = document.getElementById('join-room');
   if (joinRoomButton) {
-    joinRoomButton.addEventListener('click', async () => {
+    joinRoomButton.addEventListener('click', () => {
+      requestRoomJoin();
+    });
+  }
+
+  const changeRoomButton = document.getElementById('change-room');
+  if (changeRoomButton) {
+    changeRoomButton.addEventListener('click', () => {
       if (!syncEnabled) {
         return;
       }
-      const roomCode = getRoomInputValue();
-      updateRoomParam(roomCode);
-      await syncToRoom(roomCode);
+      const roomInput = document.getElementById('room-code');
+      const currentRoom = resolveRoomCodeFromLocation();
+      if (roomInput) {
+        roomInput.value = currentRoom ?? '';
+      }
+      updateRoomParam(null);
+      stopSyncSession();
+      if (roomInput) {
+        roomInput.focus();
+        roomInput.select();
+      }
+    });
+  }
+
+  const roomInput = document.getElementById('room-code');
+  if (roomInput) {
+    roomInput.addEventListener('keydown', event => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        requestRoomJoin();
+      }
     });
   }
 
@@ -547,6 +602,9 @@ function ensureConfigurationListeners() {
   }
 
   configurationListenersInitialized = true;
+  if (typeof window !== 'undefined') {
+    window.__configListenersReady = true;
+  }
 }
 
 function clearAutoDrawTimer({ preserveCountdownLabel = false, preserveRemainingParam = false } = {}) {
@@ -943,6 +1001,8 @@ export async function initializeApp() {
   ensureConfigurationListeners();
   setInitialSerialized(params.toString());
   persistConfigurationIfChanged(stateSnapshot.configuration);
+
+  updateRoomControls(roomCode);
 
   if (stateSnapshot.started) {
     renderWorkoutFromState(stateSnapshot);

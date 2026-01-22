@@ -223,6 +223,45 @@ test.describe("Deck of Gains app", () => {
     await expect(page.locator("#join-room")).toBeVisible();
   });
 
+  test("shows the active room display when a room is selected", async ({
+    page,
+  }) => {
+    const url = new URL(baseUrl);
+    url.searchParams.set("room", "crew");
+
+    await page.goto(url.toString());
+
+    await expect(page.locator("#room-active")).toBeVisible();
+    await expect(page.locator("#room-active-name")).toHaveText("crew");
+    await expect(page.locator("#room-code")).toBeHidden();
+  });
+
+  test("change room restores the room input", async ({ page }) => {
+    const url = new URL(baseUrl);
+    url.searchParams.set("room", "crew");
+
+    await page.goto(url.toString());
+    await page.waitForFunction(() => window.__configListenersReady === true);
+
+    await page.click("#change-room");
+
+    await expect(page.locator("#room-code")).toBeVisible();
+    await expect(page.locator("#room-code")).toHaveValue("crew");
+    await expect(page).not.toHaveURL(/room=crew/);
+
+    const selection = await page.evaluate(() => {
+      const input = document.getElementById("room-code");
+      return {
+        start: input?.selectionStart,
+        end: input?.selectionEnd,
+        value: input?.value,
+      };
+    });
+
+    expect(selection.start).toBe(0);
+    expect(selection.end).toBe(selection.value.length);
+  });
+
   test("disables sync controls when the sync server is unhealthy", async ({
     page,
   }) => {
@@ -281,6 +320,25 @@ test.describe("Deck of Gains app", () => {
     await expect(page).toHaveURL(/room=crew/);
     await expect(page.locator("#configuration-screen")).toBeVisible();
     await expect(page.locator("#app")).toBeHidden();
+  });
+
+  test("pressing Enter in the room input joins the group", async ({
+    page,
+  }) => {
+    await page.route("http://localhost:4000/api/rooms/crew", (route) => {
+      return route.fulfill({
+        status: 404,
+        contentType: "application/json",
+        body: JSON.stringify({ error: "room_not_found" }),
+      });
+    });
+
+    await page.fill("#room-code", "crew");
+    await page.keyboard.press("Enter");
+
+    await expect(page).toHaveURL(/room=crew/);
+    await expect(page.locator("#room-code")).toBeHidden();
+    await expect(page.locator("#room-active-name")).toHaveText("crew");
   });
 
   test("preloads default multipliers with clubs set to 2×", async ({
