@@ -48,6 +48,30 @@ body {
     color: rgba(255, 255, 255, 0.8);
   }
 
+  .group-join {
+    text-align: left;
+  }
+
+
+  .group-join-controls {
+    display: flex;
+    gap: 10px;
+
+    input {
+      flex: 1;
+      padding: 10px 12px;
+      border-radius: 8px;
+      border: 1px solid #cbd5f5;
+      font-size: 1rem;
+    }
+
+    button {
+      padding: 10px 18px;
+      font-weight: 700;
+      font-size: 0.95rem;
+    }
+  }
+
   #configuration-form {
     display: flex;
     flex-direction: column;
@@ -73,7 +97,7 @@ body {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
     gap: 16px;
-    margin-top: 16px;
+    margin-top: 0;
 
     .multiplier-option {
       display: flex;
@@ -123,7 +147,7 @@ body {
     align-items: center;
     gap: 16px;
     padding: 16px;
-    margin-top: 12px;
+    margin-top: 0;
     border: 1px solid #d1d5db;
     border-radius: 10px;
     background: #ffffff;
@@ -134,6 +158,10 @@ body {
       flex-direction: column;
       gap: 4px;
     }
+  }
+
+  .mode-option + .mode-option {
+    margin-top: 12px;
   }
 }
 
@@ -268,6 +296,12 @@ body[data-theme="plain"] {
       color: #4b5563;
     }
 
+    .group-join-controls input {
+      background: #ffffff;
+      border-color: #d1d5db;
+      color: #1f2933;
+    }
+
     .configuration-section {
       border-color: #e5e7eb;
       background: #f8fafc;
@@ -337,6 +371,16 @@ body[data-theme="casino"] {
       color: rgba(255, 255, 255, 0.8);
     }
 
+    .group-join-controls input {
+      background: rgba(255, 255, 255, 0.2);
+      border-color: rgba(255, 255, 255, 0.35);
+      color: #ffffff;
+    }
+
+    .group-join-controls input::placeholder {
+      color: rgba(255, 255, 255, 0.85);
+    }
+
     .configuration-section {
       border: 1px solid rgba(255, 255, 255, 0.35);
       background: rgba(0, 0, 0, 0.1);
@@ -364,6 +408,10 @@ body[data-theme="casino"] {
       .label-subtitle {
         color: rgba(255, 255, 255, 0.75);
       }
+    }
+
+    .auto-draw-interval-field .input-label {
+      color: rgba(255, 255, 255, 0.85);
     }
 
     .auto-draw-interval-field input[type="number"] {
@@ -445,6 +493,12 @@ body[data-theme="rugged"] {
 
     .configuration-subtitle {
       color: rgba(255, 255, 255, 0.85);
+    }
+
+    .group-join-controls input {
+      background: rgba(34, 34, 34, 0.85);
+      border-color: rgba(255, 69, 0, 0.6);
+      color: #ffffff;
     }
 
     .configuration-section {

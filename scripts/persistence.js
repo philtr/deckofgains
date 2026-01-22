@@ -10,8 +10,28 @@ import { resolveTheme } from './theme.js';
 const CARD_SEPARATOR = '.';
 const MULTIPLIER_SEPARATOR = '.';
 const MULTIPLIER_PAIR_SEPARATOR = '-';
+const ROOM_PARAM = 'room';
 
 let lastSerialized = null;
+
+function normalizeRoomCode(value) {
+  if (typeof value !== 'string') {
+    return null;
+  }
+  const trimmed = value.trim();
+  return trimmed ? trimmed : null;
+}
+
+export function resolveRoomCode(params) {
+  const searchParams = params instanceof URLSearchParams
+    ? params
+    : new URLSearchParams(params ?? '');
+  return normalizeRoomCode(searchParams.get(ROOM_PARAM));
+}
+
+function resolveRoomCodeFromLocation() {
+  return resolveRoomCode(new URLSearchParams(window.location.search));
+}
 
 function formatMinutesFromSeconds(seconds) {
   if (!Number.isFinite(seconds)) {
@@ -151,8 +171,12 @@ function decodeMultipliers(serialized) {
   }, {});
 }
 
-export function serializeState(state, { autoDrawRemainingSeconds } = {}) {
+export function serializeState(state, { autoDrawRemainingSeconds, roomCode } = {}) {
   const params = new URLSearchParams();
+  const resolvedRoom = normalizeRoomCode(roomCode);
+  if (resolvedRoom) {
+    params.set(ROOM_PARAM, resolvedRoom);
+  }
   const theme = resolveTheme(state?.configuration?.theme);
   if (theme) {
     params.set('theme', theme);
@@ -233,7 +257,7 @@ export function deserializeState(searchParams) {
 }
 
 export function persistState(state) {
-  const params = serializeState(state);
+  const params = serializeState(state, { roomCode: resolveRoomCodeFromLocation() });
   const search = params.toString();
   if (search === lastSerialized && search === window.location.search.slice(1)) {
     return;
@@ -245,7 +269,10 @@ export function persistState(state) {
 }
 
 export function replaceStateWithAutoDrawRemaining(state, remainingSeconds) {
-  const params = serializeState(state, { autoDrawRemainingSeconds: remainingSeconds });
+  const params = serializeState(state, {
+    autoDrawRemainingSeconds: remainingSeconds,
+    roomCode: resolveRoomCodeFromLocation()
+  });
   const search = params.toString();
   if (search === window.location.search.slice(1)) {
     return;
