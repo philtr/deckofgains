@@ -137,6 +137,7 @@ async function installRoomSocketMock(page, { onUpdate } = {}) {
       }
 
       join() {
+        window.__roomChannelJoined = true;
         const push = {
           receive: (status, callback) => {
             if (status === "ok") {
@@ -166,7 +167,9 @@ async function installRoomSocketMock(page, { onUpdate } = {}) {
         this.channels = new Map();
       }
 
-      connect() {}
+      connect() {
+        window.__roomSocketConnected = true;
+      }
 
       disconnect() {}
 
@@ -184,6 +187,28 @@ async function installRoomSocketMock(page, { onUpdate } = {}) {
 
 test.describe("Deck of Gains app", () => {
   test.beforeEach(async ({ page }) => {
+    await page.route("http://localhost:4000/healthz", (route) => {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        headers: {
+          "Access-Control-Allow-Origin": "*",
+        },
+        body: JSON.stringify({ ok: true }),
+      });
+    });
+
+    await page.route("https://sync.deck.fitness/healthz", (route) => {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        headers: {
+          "Access-Control-Allow-Origin": "*",
+        },
+        body: JSON.stringify({ ok: true }),
+      });
+    });
+
     await page.goto(baseUrl);
   });
 
@@ -198,6 +223,26 @@ test.describe("Deck of Gains app", () => {
     await expect(page.locator("#join-room")).toBeVisible();
   });
 
+  test("disables sync controls when the sync server is unhealthy", async ({
+    page,
+  }) => {
+    await page.unroute("http://localhost:4000/healthz");
+    await page.route("http://localhost:4000/healthz", (route) => {
+      return route.fulfill({
+        status: 503,
+        contentType: "application/json",
+        headers: {
+          "Access-Control-Allow-Origin": "*",
+        },
+        body: JSON.stringify({ ok: false }),
+      });
+    });
+
+    await page.goto(baseUrl);
+
+    await expect(page.locator("#group-join")).toBeHidden();
+  });
+
   test("start workout uses the room name from the setup screen", async ({
     page,
   }) => {
@@ -208,6 +253,8 @@ test.describe("Deck of Gains app", () => {
         body: JSON.stringify({ error: "room_not_found" }),
       });
     });
+
+    await page.goto(baseUrl);
 
     await page.fill("#room-code", "crew");
     await page.click("#start-workout");
@@ -225,6 +272,8 @@ test.describe("Deck of Gains app", () => {
         body: JSON.stringify({ error: "room_not_found" }),
       });
     });
+
+    await page.goto(baseUrl);
 
     await page.fill("#room-code", "crew");
     await page.click("#join-room");
@@ -421,6 +470,9 @@ test.describe("Deck of Gains app", () => {
       return route.fulfill({
         status: 200,
         contentType: "application/json",
+        headers: {
+          "Access-Control-Allow-Origin": "*",
+        },
         body: JSON.stringify({
           room_id: "abc",
           version: 1,
@@ -437,6 +489,8 @@ test.describe("Deck of Gains app", () => {
     url.searchParams.set("sync", "https://sync.deck.fitness");
 
     await page.goto(url.toString());
+
+    await expect(page.locator("#round-title")).toHaveText("Round 5 of 12");
 
     const restored = await page.evaluate(() => roundNumber);
 
@@ -502,6 +556,7 @@ test.describe("Deck of Gains app", () => {
     url.searchParams.set("room", "abc");
 
     await page.goto(url.toString());
+    await page.waitForFunction(() => window.__roomChannelJoined === true);
 
     await page.evaluate(() => {
       roundNumber = 4;
@@ -1326,6 +1381,7 @@ test.describe("Deck of Gains app", () => {
     url.searchParams.set("draw", "c-7.c-99");
 
     await page.goto(url.toString());
+    await expect(page.locator("body")).toHaveAttribute("data-theme", "plain");
 
     const restored = await page.evaluate(() => ({
       deck: deck.map((card) => `${card.suit}-${card.number}`),

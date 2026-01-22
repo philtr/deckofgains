@@ -152,3 +152,16 @@ function normalizeSyncBaseUrl(candidate) {
   const trimmed = candidate.trim().replace(/\/+$/, '');
   return trimmed || 'https://sync.deck.fitness';
 }
+
+export async function checkSyncHealth() {
+  try {
+    const response = await fetch(`${resolveSyncBaseUrl()}/healthz`);
+    if (!response.ok) {
+      return false;
+    }
+    const payload = await response.json();
+    return payload?.ok === true;
+  } catch (error) {
+    return false;
+  }
+}

@@ -30,7 +30,7 @@ import {
 } from './persistence.js';
 import { loadStoredConfiguration, storeConfiguration } from './configStorage.js';
 import { playDrawSound } from './audio.js';
-import { createRoomSync } from './syncClient.js';
+import { checkSyncHealth, createRoomSync } from './syncClient.js';
 
 const DRAW_BUTTON_DEFAULT_LABEL = 'Draw Cards';
 const AUTO_DRAW_REMAINING_UPDATE_MS = 1000;
@@ -46,6 +46,7 @@ let syncRoomCode = null;
 let syncSuppressOutbound = false;
 let lastSyncedSerialized = null;
 let syncHasRemoteState = false;
+let syncEnabled = true;
 
 function hasConfigurationParams(params) {
   if (!(params instanceof URLSearchParams)) {
@@ -96,6 +97,13 @@ function getRoomInputValue() {
     roomInput.value = roomCode ?? '';
   }
   return roomCode;
+}
+
+function setSyncControlsEnabled(enabled) {
+  const groupJoin = document.getElementById('group-join');
+  if (groupJoin) {
+    groupJoin.style.display = enabled ? '' : 'none';
+  }
 }
 
 async function syncToRoom(roomCode) {
@@ -194,6 +202,11 @@ function stopSyncSession() {
 }
 
 async function ensureSyncSession(roomCode) {
+  if (!syncEnabled) {
+    stopSyncSession();
+    return { remoteState: null };
+  }
+
   if (!roomCode) {
     stopSyncSession();
     return { remoteState: null };
@@ -456,6 +469,9 @@ function ensureConfigurationListeners() {
   const joinRoomButton = document.getElementById('join-room');
   if (joinRoomButton) {
     joinRoomButton.addEventListener('click', async () => {
+      if (!syncEnabled) {
+        return;
+      }
       const roomCode = getRoomInputValue();
       updateRoomParam(roomCode);
       await syncToRoom(roomCode);
@@ -795,11 +811,13 @@ export function drawCards() {
 }
 
 export async function startWorkout() {
-  const roomCode = getRoomInputValue();
-  updateRoomParam(roomCode);
-  const remoteState = await syncToRoom(roomCode);
-  if (remoteState) {
-    return;
+  if (syncEnabled) {
+    const roomCode = getRoomInputValue();
+    updateRoomParam(roomCode);
+    const remoteState = await syncToRoom(roomCode);
+    if (remoteState) {
+      return;
+    }
   }
 
   const stateSnapshot = getState();
@@ -902,14 +920,19 @@ export async function initializeApp() {
     configuration
   };
 
+  syncEnabled = await checkSyncHealth();
+  setSyncControlsEnabled(syncEnabled);
+
   let remoteState = null;
-  if (roomCode) {
+  if (roomCode && syncEnabled) {
     const syncResult = await ensureSyncSession(roomCode);
     remoteState = syncResult.remoteState;
     if (remoteState) {
       initialState = remoteState;
       syncHasRemoteState = true;
     }
+  } else if (!syncEnabled) {
+    stopSyncSession();
   }
 
   replaceState(initialState, { silent: true });
@@ -929,7 +952,7 @@ export async function initializeApp() {
 
   const remainingSeconds = remoteState ? null : persisted.autoDrawRemainingSeconds;
   ensureAutoDrawTimer(stateSnapshot, { remainingSeconds });
-  if (roomCode) {
+  if (roomCode && syncEnabled) {
     rememberSyncedState(stateSnapshot);
   }
 
