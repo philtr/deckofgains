@@ -60,7 +60,14 @@ test.afterAll(async () => {
 
 async function startWorkoutWithOptions(
   page,
-  { theme = "casino", multipliers, endless = false, autoDraw } = {},
+  {
+    theme = "casino",
+    multipliers,
+    endless = false,
+    autoDraw,
+    includeChallengeCards = false,
+    challengeCounts,
+  } = {},
 ) {
   if (multipliers) {
     for (const [suit, value] of Object.entries(multipliers)) {
@@ -88,6 +95,16 @@ async function startWorkoutWithOptions(
     );
     await page.fill("#auto-draw-minutes", String(minutes));
     await page.fill("#auto-draw-seconds", String(seconds));
+  }
+
+  if (includeChallengeCards) {
+    await page.check("#include-challenge-cards");
+  }
+
+  if (challengeCounts) {
+    for (const [id, value] of Object.entries(challengeCounts)) {
+      await page.fill(`#challenge-count-${id}`, String(value));
+    }
   }
 
   await page.click("#start-workout");
@@ -147,6 +164,19 @@ test.describe("Deck of Gains app", () => {
     await expect(intervalContainer).toBeVisible();
     await expect(page.locator("#auto-draw-minutes")).toHaveValue("2");
     await expect(page.locator("#auto-draw-seconds")).toHaveValue("30");
+  });
+
+  test("challenge cards default to disabled in configuration", async ({
+    page,
+  }) => {
+    await expect(page.locator("#include-challenge-cards")).not.toBeChecked();
+    await expect(page.locator("#challenge-card-options")).toBeHidden();
+
+    await page.check("#include-challenge-cards");
+    await expect(page.locator("#challenge-card-options")).toBeVisible();
+    await expect(page.locator("#challenge-count-double")).toHaveValue("1");
+    await expect(page.locator("#challenge-count-boost")).toHaveValue("1");
+    await expect(page.locator("#challenge-count-sprint")).toHaveValue("1");
   });
 
   test("restores configuration from localStorage when URL has no configuration params", async ({
@@ -925,6 +955,129 @@ test.describe("Deck of Gains app", () => {
 
     expect(restored.deck).toEqual(["hearts-1", "diamonds-13"]);
     expect(restored.lastDrawn).toEqual(["clubs-7"]);
+  });
+
+  test("draws challenge cards and encodes them in the URL when enabled", async ({
+    page,
+  }) => {
+    await startWorkoutWithOptions(page, { includeChallengeCards: true });
+
+    await setDeck(page, [
+      { type: "challenge", id: "double" },
+      { suit: "hearts", number: 1 },
+    ]);
+
+    await page.evaluate(() => {
+      roundCompleted = false;
+    });
+
+    await withPatchedRandom(page, 0, async () => {
+      await page.click("#draw-button");
+    });
+
+    await expect(page.locator("#drawn-cards .card.challenge")).toHaveCount(1);
+    await expect(page.locator("#instructions p").nth(0)).toHaveText(
+      "Jumping Jacks: 22 reps",
+    );
+    await expect(page.locator("#instructions p").nth(1)).toHaveText(
+      "Challenge: Double all reps this round.",
+    );
+
+    const params = new URL(page.url()).searchParams;
+    expect(params.get("challenge")).toBe("1");
+    expect(params.get("challengeCounts")).toBe("double-1.boost-1.sprint-1");
+    expect(params.get("draw")).toBe("x-double.h-1");
+  });
+
+  test("shuffles configured challenge counts into the deck", async ({
+    page,
+  }) => {
+    await startWorkoutWithOptions(page, {
+      includeChallengeCards: true,
+      challengeCounts: { double: 2, boost: 1, sprint: 0 },
+    });
+
+    const deckSnapshot = await page.evaluate(() => ({
+      total: deck.length,
+      challengeIds: deck
+        .filter((card) => card.type === "challenge")
+        .map((card) => card.id),
+    }));
+
+    expect(deckSnapshot.total).toBe(55);
+    expect(deckSnapshot.challengeIds.filter((id) => id === "double").length).toBe(
+      2,
+    );
+    expect(deckSnapshot.challengeIds.filter((id) => id === "boost").length).toBe(
+      1,
+    );
+    expect(deckSnapshot.challengeIds.filter((id) => id === "sprint").length).toBe(
+      0,
+    );
+  });
+
+  test("draws an extra card when a challenge appears in a round", async ({
+    page,
+  }) => {
+    await startWorkoutWithOptions(page, { includeChallengeCards: true });
+
+    await setDeck(page, [
+      { type: "challenge", id: "double" },
+      { suit: "hearts", number: 1 },
+      { suit: "spades", number: 2 },
+      { suit: "diamonds", number: 3 },
+      { suit: "clubs", number: 4 },
+      { suit: "hearts", number: 5 },
+    ]);
+
+    await page.evaluate(() => {
+      roundCompleted = false;
+    });
+
+    await withPatchedRandom(page, 0, async () => {
+      await page.click("#draw-button");
+    });
+
+    const restored = await page.evaluate(() => ({
+      lastDrawn,
+    }));
+
+    const normalCards = restored.lastDrawn.filter(
+      (card) => !card.type && card.suit,
+    );
+
+    expect(restored.lastDrawn.length).toBe(5);
+    expect(normalCards.length).toBe(4);
+  });
+
+  test("restores challenge cards from the URL", async ({ page }) => {
+    const url = new URL(baseUrl);
+    url.searchParams.set("started", "1");
+    url.searchParams.set("round", "2");
+    url.searchParams.set("completed", "1");
+    url.searchParams.set("theme", "plain");
+    url.searchParams.set("challenge", "1");
+    url.searchParams.set("challengeCounts", "double-2.boost-1.sprint-0");
+    url.searchParams.set("multipliers", "h-1.s-1.d-1.c-1");
+    url.searchParams.set("deck", "h-1");
+    url.searchParams.set("draw", "x-double.h-1");
+
+    await page.goto(url.toString());
+
+    const restored = await page.evaluate(() => ({
+      lastDrawn: lastDrawn.map((card) =>
+        card.type === "challenge" ? `challenge-${card.id}` : card.suit,
+      ),
+      configuration,
+    }));
+
+    expect(restored.lastDrawn).toEqual(["challenge-double", "hearts"]);
+    expect(restored.configuration.includeChallengeCards).toBe(true);
+    expect(restored.configuration.challengeCounts).toEqual({
+      double: 2,
+      boost: 1,
+      sprint: 0,
+    });
   });
 
   test("persists workout progress in the URL and restores it on reload", async ({

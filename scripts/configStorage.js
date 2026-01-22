@@ -1,6 +1,9 @@
 import {
+  challengeCards,
   defaultAutoDrawIntervalSeconds,
   defaultMultipliers,
+  defaultChallengeCounts,
+  defaultIncludeChallengeCards,
   suits
 } from './constants.js';
 import { resolveTheme } from './theme.js';
@@ -25,11 +28,25 @@ function normalizeAutoDraw(candidate = {}) {
   return { enabled, intervalSeconds };
 }
 
+function normalizeChallengeCounts(candidate = {}) {
+  return challengeCards.reduce((acc, card) => {
+    const value = Number.parseInt(candidate?.[card.id], 10);
+    const fallback = defaultChallengeCounts[card.id] ?? 0;
+    acc[card.id] = Number.isFinite(value) && value >= 0 ? value : fallback;
+    return acc;
+  }, {});
+}
+
 function normalizeConfiguration(candidate = {}) {
   return {
     multipliers: normalizeMultipliers(candidate?.multipliers),
     theme: resolveTheme(candidate?.theme),
     endless: Boolean(candidate?.endless),
+    includeChallengeCards:
+      candidate?.includeChallengeCards !== undefined
+        ? Boolean(candidate?.includeChallengeCards)
+        : defaultIncludeChallengeCards,
+    challengeCounts: normalizeChallengeCounts(candidate?.challengeCounts),
     autoDraw: normalizeAutoDraw(candidate?.autoDraw)
   };
 }

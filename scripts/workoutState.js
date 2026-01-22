@@ -1,7 +1,10 @@
 import {
+  challengeCards,
   defaultMultipliers,
+  defaultChallengeCounts,
   defaultTheme,
-  defaultAutoDrawIntervalSeconds
+  defaultAutoDrawIntervalSeconds,
+  defaultIncludeChallengeCards
 } from './constants.js';
 
 const state = {
@@ -9,6 +12,8 @@ const state = {
     multipliers: { ...defaultMultipliers },
     theme: defaultTheme,
     endless: false,
+    includeChallengeCards: defaultIncludeChallengeCards,
+    challengeCounts: { ...defaultChallengeCounts },
     autoDraw: {
       enabled: false,
       intervalSeconds: defaultAutoDrawIntervalSeconds
@@ -26,6 +31,9 @@ let suppressionDepth = 0;
 let pendingNotification = false;
 
 function cloneCard(card) {
+  if (card?.type === 'challenge') {
+    return { type: 'challenge', id: card.id };
+  }
   return { suit: card.suit, number: Number(card.number) };
 }
 
@@ -37,6 +45,15 @@ function normalizeMultipliers(candidate = {}) {
   return Object.keys(defaultMultipliers).reduce((acc, suit) => {
     const value = Number.parseInt(candidate[suit], 10);
     acc[suit] = Number.isFinite(value) ? value : defaultMultipliers[suit];
+    return acc;
+  }, {});
+}
+
+function normalizeChallengeCounts(candidate = {}) {
+  return challengeCards.reduce((acc, card) => {
+    const value = Number.parseInt(candidate[card.id], 10);
+    const fallback = defaultChallengeCounts[card.id] ?? 0;
+    acc[card.id] = Number.isFinite(value) && value >= 0 ? value : fallback;
     return acc;
   }, {});
 }
@@ -83,6 +100,15 @@ function sanitizeConfiguration(partial = {}) {
 
   const theme = partial.theme !== undefined ? partial.theme : state.configuration.theme;
   const endless = partial.endless !== undefined ? Boolean(partial.endless) : state.configuration.endless;
+  const includeChallengeCards =
+    partial.includeChallengeCards !== undefined
+      ? Boolean(partial.includeChallengeCards)
+      : state.configuration.includeChallengeCards;
+  const challengeCountsSource =
+    partial.challengeCounts !== undefined
+      ? { ...state.configuration.challengeCounts, ...partial.challengeCounts }
+      : state.configuration.challengeCounts;
+  const challengeCounts = normalizeChallengeCounts(challengeCountsSource);
   const autoDraw =
     partial.autoDraw !== undefined
       ? sanitizeAutoDraw({ ...state.configuration.autoDraw, ...partial.autoDraw })
@@ -92,6 +118,8 @@ function sanitizeConfiguration(partial = {}) {
     multipliers,
     theme: theme ?? defaultTheme,
     endless,
+    includeChallengeCards,
+    challengeCounts,
     autoDraw
   };
 }
@@ -135,6 +163,8 @@ export function getState() {
       multipliers: { ...state.configuration.multipliers },
       theme: state.configuration.theme,
       endless: state.configuration.endless,
+      includeChallengeCards: state.configuration.includeChallengeCards,
+      challengeCounts: { ...state.configuration.challengeCounts },
       autoDraw: { ...state.configuration.autoDraw }
     },
     deck: cloneDeck(state.deck),

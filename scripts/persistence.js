@@ -1,6 +1,8 @@
 import {
+  challengeCards,
   suits,
   defaultMultipliers,
+  defaultChallengeCounts,
   suitCodes,
   suitLookupByCode,
   defaultAutoDrawIntervalSeconds
@@ -10,6 +12,10 @@ import { resolveTheme } from './theme.js';
 const CARD_SEPARATOR = '.';
 const MULTIPLIER_SEPARATOR = '.';
 const MULTIPLIER_PAIR_SEPARATOR = '-';
+const CHALLENGE_CARD_CODE = 'x';
+const CHALLENGE_COUNT_SEPARATOR = '.';
+const CHALLENGE_COUNT_PAIR_SEPARATOR = '-';
+const challengeIds = new Set(challengeCards.map(card => card.id));
 
 let lastSerialized = null;
 
@@ -74,6 +80,9 @@ function decodeSuit(token) {
 
 function encodeCard(card) {
   if (!card || !card.suit) {
+    if (card?.type === 'challenge' && card.id) {
+      return `${CHALLENGE_CARD_CODE}-${card.id}`;
+    }
     return null;
   }
   if (!suits.includes(card.suit)) {
@@ -87,6 +96,13 @@ function decodeCard(token) {
     return null;
   }
   const [rawSuit, rawNumber] = token.split('-');
+  if (rawSuit === CHALLENGE_CARD_CODE) {
+    const id = rawNumber;
+    if (!id || !challengeIds.has(id)) {
+      return null;
+    }
+    return { type: 'challenge', id };
+  }
   const number = Number.parseInt(rawNumber, 10);
   const suit = decodeSuit(rawSuit);
   if (!suit || !Number.isFinite(number)) {
@@ -151,6 +167,44 @@ function decodeMultipliers(serialized) {
   }, {});
 }
 
+function normalizeChallengeCounts(candidate = {}) {
+  return challengeCards.reduce((acc, card) => {
+    const value = Number.parseInt(candidate?.[card.id], 10);
+    const fallback = defaultChallengeCounts[card.id] ?? 0;
+    acc[card.id] = Number.isFinite(value) && value >= 0 ? value : fallback;
+    return acc;
+  }, {});
+}
+
+function encodeChallengeCounts(counts = {}) {
+  return challengeCards
+    .map(card => {
+      const value = Number.parseInt(counts?.[card.id], 10);
+      const fallback = defaultChallengeCounts[card.id] ?? 0;
+      const numeric = Number.isFinite(value) && value >= 0 ? value : fallback;
+      return `${card.id}${CHALLENGE_COUNT_PAIR_SEPARATOR}${numeric}`;
+    })
+    .join(CHALLENGE_COUNT_SEPARATOR);
+}
+
+function decodeChallengeCounts(serialized) {
+  if (!serialized) {
+    return null;
+  }
+
+  return serialized.split(CHALLENGE_COUNT_SEPARATOR).reduce((acc, part) => {
+    const [rawId, rawValue] = part.split(CHALLENGE_COUNT_PAIR_SEPARATOR);
+    if (!challengeIds.has(rawId)) {
+      return acc;
+    }
+    const numeric = Number.parseInt(rawValue, 10);
+    if (Number.isFinite(numeric) && numeric >= 0) {
+      acc[rawId] = numeric;
+    }
+    return acc;
+  }, {});
+}
+
 export function serializeState(state, { autoDrawRemainingSeconds } = {}) {
   const params = new URLSearchParams();
   const theme = resolveTheme(state?.configuration?.theme);
@@ -159,6 +213,13 @@ export function serializeState(state, { autoDrawRemainingSeconds } = {}) {
   }
   if (state?.configuration?.endless) {
     params.set('endless', '1');
+  }
+  if (state?.configuration?.includeChallengeCards) {
+    params.set('challenge', '1');
+    params.set(
+      'challengeCounts',
+      encodeChallengeCounts(state?.configuration?.challengeCounts ?? defaultChallengeCounts)
+    );
   }
 
   if (state?.configuration?.autoDraw?.enabled) {
@@ -207,6 +268,9 @@ export function deserializeState(searchParams) {
   const configuration = {
     theme: params.get('theme'),
     endless: params.get('endless') === '1',
+    includeChallengeCards:
+      params.get('challenge') === '1' || params.get('challenge') === 'true',
+    challengeCounts: normalizeChallengeCounts(decodeChallengeCounts(params.get('challengeCounts'))),
     multipliers: decodeMultipliers(params.get('multipliers')) ?? defaultMultipliers,
     autoDraw: {
       enabled: params.get('auto') === '1',

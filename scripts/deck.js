@@ -1,11 +1,30 @@
-import { exercises, suitSymbols, suits, defaultMultipliers } from './constants.js';
+import {
+  challengeCards,
+  defaultChallengeCounts,
+  exercises,
+  suitSymbols,
+  suits,
+  defaultMultipliers
+} from './constants.js';
 
-export function buildDeck() {
+const challengeLookup = new Map(challengeCards.map(card => [card.id, card]));
+
+export function buildDeck({ includeChallengeCards = false, challengeCounts } = {}) {
   const cards = [];
   for (const suit of suits) {
     for (let number = 1; number <= 13; number += 1) {
       cards.push({ suit, number });
     }
+  }
+  if (includeChallengeCards) {
+    challengeCards.forEach(card => {
+      const count = Number.parseInt(challengeCounts?.[card.id], 10);
+      const fallback = defaultChallengeCounts[card.id] ?? 0;
+      const copies = Number.isFinite(count) && count >= 0 ? count : fallback;
+      for (let i = 0; i < copies; i += 1) {
+        cards.push({ type: 'challenge', id: card.id });
+      }
+    });
   }
   return cards;
 }
@@ -42,6 +61,9 @@ export function calculateTotals(cards, configuration) {
   }, {});
 
   cards.forEach(card => {
+    if (card?.type === 'challenge') {
+      return;
+    }
     const exercise = exercises[card.suit];
     if (!exercise) {
       return;
@@ -57,8 +79,76 @@ export function calculateTotals(cards, configuration) {
   return totals;
 }
 
+export function countStandardCards(cards) {
+  if (!Array.isArray(cards)) {
+    return 0;
+  }
+  return cards.filter(card => card?.type !== 'challenge').length;
+}
+
+export function applyChallengeEffects(totals, cards) {
+  const adjustedTotals = { ...totals };
+  let multiplier = 1;
+  let bonusPerExercise = 0;
+  let extraSprints = 0;
+  const notes = [];
+
+  cards.forEach(card => {
+    if (card?.type !== 'challenge') {
+      return;
+    }
+    const definition = challengeLookup.get(card.id);
+    if (!definition) {
+      return;
+    }
+    notes.push(definition.description);
+    const effect = definition.effect ?? {};
+    switch (effect.type) {
+      case 'multiplier':
+        multiplier *= Number(effect.value) || 1;
+        break;
+      case 'bonus':
+        bonusPerExercise += Number(effect.value) || 0;
+        break;
+      case 'sprint':
+        extraSprints += Number(effect.value) || 0;
+        break;
+      default:
+        break;
+    }
+  });
+
+  if (bonusPerExercise > 0) {
+    Object.keys(adjustedTotals).forEach(exercise => {
+      if (adjustedTotals[exercise] > 0) {
+        adjustedTotals[exercise] += bonusPerExercise;
+      }
+    });
+  }
+
+  if (multiplier !== 1) {
+    Object.keys(adjustedTotals).forEach(exercise => {
+      adjustedTotals[exercise] *= multiplier;
+    });
+  }
+
+  return {
+    totals: adjustedTotals,
+    extraSprints,
+    notes
+  };
+}
+
 export function createCardElement(card) {
   const cardElement = document.createElement('div');
+  if (card?.type === 'challenge') {
+    const definition = challengeLookup.get(card.id);
+    cardElement.className = 'card challenge';
+    const title = definition?.name ?? 'Challenge';
+    cardElement.innerHTML = `<span class="challenge-title">Challenge</span><span class="challenge-name">${title}</span>`;
+    return cardElement;
+  }
+
   cardElement.className = 'card';
   const isRed = card.suit === 'hearts' || card.suit === 'diamonds';
   const classes = isRed ? 'red' : '';

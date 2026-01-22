@@ -2,10 +2,18 @@ import {
   suits,
   defaultMultipliers,
   totalRounds,
-  defaultAutoDrawIntervalSeconds
+  defaultAutoDrawIntervalSeconds,
+  challengeCards,
+  defaultChallengeCounts
 } from './constants.js';
 import { applyTheme, deriveInitialTheme, resolveTheme } from './theme.js';
-import { buildDeck, calculateTotals, createCardElement } from './deck.js';
+import {
+  applyChallengeEffects,
+  buildDeck,
+  calculateTotals,
+  countStandardCards,
+  createCardElement
+} from './deck.js';
 import {
   bindStateToWindow,
   getState,
@@ -49,6 +57,8 @@ function hasConfigurationParams(params) {
     'theme',
     'rugged',
     'endless',
+    'challenge',
+    'challengeCounts',
     'multipliers',
     'auto',
     'autoIntervalSeconds',
@@ -61,6 +71,8 @@ function buildConfigurationSnapshot(baseConfiguration, theme) {
   return {
     multipliers: baseConfiguration?.multipliers ?? defaultMultipliers,
     endless: baseConfiguration?.endless ?? false,
+    includeChallengeCards: baseConfiguration?.includeChallengeCards ?? false,
+    challengeCounts: baseConfiguration?.challengeCounts ?? { ...defaultChallengeCounts },
     theme,
     autoDraw: baseConfiguration?.autoDraw ?? {
       enabled: false,
@@ -79,6 +91,8 @@ function serializeConfiguration(configuration) {
     multipliers,
     theme: resolveTheme(configuration?.theme),
     endless: Boolean(configuration?.endless),
+    includeChallengeCards: Boolean(configuration?.includeChallengeCards),
+    challengeCounts: configuration?.challengeCounts ?? defaultChallengeCounts,
     autoDraw: {
       enabled: Boolean(configuration?.autoDraw?.enabled),
       intervalSeconds: Number.parseInt(configuration?.autoDraw?.intervalSeconds, 10)
@@ -114,6 +128,53 @@ function getAutoDrawIntervalElements() {
     minutesInput: document.getElementById('auto-draw-minutes'),
     secondsInput: document.getElementById('auto-draw-seconds')
   };
+}
+
+function getChallengeCountInputs() {
+  return challengeCards.reduce((acc, card) => {
+    acc[card.id] = document.getElementById(`challenge-count-${card.id}`);
+    return acc;
+  }, {});
+}
+
+function updateChallengeOptionsVisibility(enabled) {
+  const container = document.getElementById('challenge-card-options');
+  if (!container) {
+    return;
+  }
+  container.classList.toggle('is-hidden', !enabled);
+  if (enabled) {
+    container.style.removeProperty('display');
+  } else {
+    container.style.display = 'none';
+  }
+}
+
+function setChallengeCountInputs(counts = {}) {
+  const inputs = getChallengeCountInputs();
+  challengeCards.forEach(card => {
+    const input = inputs[card.id];
+    if (!input) {
+      return;
+    }
+    const value = counts[card.id] ?? defaultChallengeCounts[card.id] ?? 0;
+    input.value = String(value);
+  });
+}
+
+function readChallengeCountsFromInputs() {
+  const inputs = getChallengeCountInputs();
+  return challengeCards.reduce((acc, card) => {
+    const input = inputs[card.id];
+    if (!input) {
+      return acc;
+    }
+    const parsed = Number.parseInt(input.value, 10);
+    acc[card.id] = Number.isFinite(parsed) && parsed >= 0
+      ? parsed
+      : defaultChallengeCounts[card.id] ?? 0;
+    return acc;
+  }, {});
 }
 
 function updateAutoDrawIntervalVisibility(enabled) {
@@ -276,6 +337,13 @@ function populateConfigurationForm(state) {
     endlessToggle.checked = Boolean(configuration.endless);
   }
 
+  const challengeToggle = document.getElementById('include-challenge-cards');
+  if (challengeToggle) {
+    challengeToggle.checked = Boolean(configuration.includeChallengeCards);
+  }
+  setChallengeCountInputs(configuration.challengeCounts);
+  updateChallengeOptionsVisibility(Boolean(configuration.includeChallengeCards));
+
   const autoDrawToggle = document.getElementById('auto-draw-enabled');
   const autoDrawEnabled = Boolean(configuration.autoDraw?.enabled);
   if (autoDrawToggle) {
@@ -341,6 +409,29 @@ function ensureConfigurationListeners() {
   if (endlessToggle) {
     endlessToggle.addEventListener('change', event => {
       updateConfiguration({ endless: event.target.checked });
+    });
+  }
+
+  const challengeToggle = document.getElementById('include-challenge-cards');
+  if (challengeToggle) {
+    challengeToggle.addEventListener('change', event => {
+      updateConfiguration({ includeChallengeCards: event.target.checked });
+      updateChallengeOptionsVisibility(event.target.checked);
+      if (event.target.checked) {
+        updateConfiguration({ challengeCounts: readChallengeCountsFromInputs() });
+      }
+    });
+  }
+
+  const challengeInputs = Object.values(getChallengeCountInputs()).filter(Boolean);
+  if (challengeInputs.length > 0) {
+    const handleChallengeCountsChange = () => {
+      updateConfiguration({ challengeCounts: readChallengeCountsFromInputs() });
+      populateConfigurationForm(getState());
+    };
+    challengeInputs.forEach(input => {
+      input.addEventListener('change', handleChallengeCountsChange);
+      input.addEventListener('blur', handleChallengeCountsChange);
     });
   }
 
@@ -410,7 +501,7 @@ function shouldContinueAutoDraw(state) {
     return false;
   }
 
-  if (!state.configuration.endless && state.deck.length === 0) {
+  if (!state.configuration.endless && countStandardCards(state.deck) === 0) {
     return false;
   }
 
@@ -484,6 +575,12 @@ function appendSprintInstruction(instructionsDiv, text) {
   instructionsDiv.appendChild(sprintInstruction);
 }
 
+function appendChallengeInstruction(instructionsDiv, text) {
+  const challengeInstruction = document.createElement('p');
+  challengeInstruction.textContent = `Challenge: ${text}`;
+  instructionsDiv.appendChild(challengeInstruction);
+}
+
 function appendNewSetButton(instructionsDiv) {
   const newSetButton = document.createElement('button');
   newSetButton.textContent = 'New Set';
@@ -538,25 +635,43 @@ function renderWorkoutFromState(state) {
     });
   }
 
+  let challengeEffects = null;
   if (instructionsDiv && cards.length > 0) {
     const totals = calculateTotals(cards, state.configuration);
-    renderTotalsParagraphs(instructionsDiv, totals);
+    challengeEffects = applyChallengeEffects(totals, cards);
+    renderTotalsParagraphs(instructionsDiv, challengeEffects.totals);
+    challengeEffects.notes.forEach(note => {
+      appendChallengeInstruction(instructionsDiv, note);
+    });
   }
 
-  const deckLength = state.deck.length;
+  const remainingStandardCards = countStandardCards(state.deck);
   if (instructionsDiv) {
-    if (state.configuration.endless) {
-      appendSprintInstruction(instructionsDiv, 'Complete a 50 yard sprint.');
-    } else if (deckLength === 0 && cards.length > 0) {
-      appendSprintInstruction(instructionsDiv, 'Complete 2 sprints of 50 yards each.');
-      appendNewSetButton(instructionsDiv);
-    } else if (cards.length > 0) {
-      appendSprintInstruction(instructionsDiv, 'Complete a 50 yard sprint.');
+    if (cards.length > 0) {
+      const baseSprintCount = state.configuration.endless
+        ? 1
+        : remainingStandardCards === 0
+          ? 2
+          : 1;
+      const extraSprints = challengeEffects?.extraSprints ?? 0;
+      const sprintCount = baseSprintCount + extraSprints;
+      if (sprintCount > 1) {
+        appendSprintInstruction(
+          instructionsDiv,
+          `Complete ${sprintCount} sprints of 50 yards each.`
+        );
+      } else {
+        appendSprintInstruction(instructionsDiv, 'Complete a 50 yard sprint.');
+      }
+
+      if (!state.configuration.endless && remainingStandardCards === 0) {
+        appendNewSetButton(instructionsDiv);
+      }
     }
   }
 
   if (drawButton) {
-    if (!state.configuration.endless && deckLength === 0) {
+    if (!state.configuration.endless && remainingStandardCards === 0) {
       drawButton.style.display = 'none';
     } else {
       drawButton.style.display = '';
@@ -576,7 +691,8 @@ function serializeAndRenderState() {
 }
 
 export function initializeDeck() {
-  const newDeck = buildDeck();
+  const { includeChallengeCards, challengeCounts } = getState().configuration;
+  const newDeck = buildDeck({ includeChallengeCards, challengeCounts });
   setDeck(newDeck);
   return newDeck;
 }
@@ -584,28 +700,31 @@ export function initializeDeck() {
 export function doDrawCards() {
   let { deck } = getState();
   if (deck.length === 0) {
-    deck = buildDeck();
+    const { includeChallengeCards, challengeCounts } = getState().configuration;
+    deck = buildDeck({ includeChallengeCards, challengeCounts });
     setDeck(deck);
   }
 
   const state = getState();
   const activeDeck = [...state.deck];
   const configuration = state.configuration;
-  const cardCount = configuration.endless
-    ? Math.min(4, activeDeck.length)
-    : activeDeck.length <= 8
-      ? activeDeck.length
+  const remainingStandardCards = countStandardCards(activeDeck);
+  const targetStandardCards = configuration.endless
+    ? Math.min(4, remainingStandardCards)
+    : remainingStandardCards <= 8
+      ? remainingStandardCards
       : 4;
 
   const drawnCards = [];
-  for (let i = 0; i < cardCount; i += 1) {
-    if (activeDeck.length === 0) {
-      break;
-    }
+  let drawnStandardCards = 0;
+  while (activeDeck.length > 0 && drawnStandardCards < targetStandardCards) {
     const index = Math.floor(Math.random() * activeDeck.length);
     const [card] = activeDeck.splice(index, 1);
     if (card) {
       drawnCards.push(card);
+      if (card.type !== 'challenge') {
+        drawnStandardCards += 1;
+      }
     }
   }
 
@@ -649,6 +768,11 @@ export function startWorkout() {
 
   const endlessToggle = document.getElementById('endless-mode');
   const endless = endlessToggle ? endlessToggle.checked : stateSnapshot.configuration.endless;
+  const challengeToggle = document.getElementById('include-challenge-cards');
+  const includeChallengeCards = challengeToggle
+    ? challengeToggle.checked
+    : stateSnapshot.configuration.includeChallengeCards;
+  const challengeCounts = readChallengeCountsFromInputs();
   const autoDrawToggle = document.getElementById('auto-draw-enabled');
   const autoDrawMinutesInput = document.getElementById('auto-draw-minutes');
   const autoDrawSecondsInput = document.getElementById('auto-draw-seconds');
@@ -664,8 +788,8 @@ export function startWorkout() {
   clearAutoDrawTimer();
 
   suppressNotifications(() => {
-    updateConfiguration({ multipliers, theme, endless });
-    setDeck(buildDeck());
+    updateConfiguration({ multipliers, theme, endless, includeChallengeCards, challengeCounts });
+    setDeck(buildDeck({ includeChallengeCards, challengeCounts }));
     setRoundNumber(1);
     setRoundCompleted(false);
     setLastDrawn([]);
