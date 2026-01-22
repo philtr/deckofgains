@@ -243,6 +243,15 @@ export function bindStateToWindow(target = window) {
       set(value) {
         setRoundCompleted(value);
       }
+    },
+    lastDrawn: {
+      ...descriptorOptions,
+      get() {
+        return state.lastDrawn;
+      },
+      set(value) {
+        setLastDrawn(value);
+      }
     }
   });
 }
