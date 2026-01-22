@@ -9,6 +9,7 @@ const mimeTypes = {
   ".css": "text/css",
   ".html": "text/html",
   ".js": "application/javascript",
+  ".mjs": "application/javascript",
   ".json": "application/json",
   ".map": "application/json",
 };

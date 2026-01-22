@@ -28,6 +28,20 @@
           Customize your workout before the first draw.
         </p>
         <form id="configuration-form">
+          <fieldset id="group-join" class="configuration-section group-join">
+            <legend>Create or join a group</legend>
+            <div class="group-join-controls">
+              <input
+                id="room-code"
+                type="text"
+                placeholder="Enter a room name"
+                autocomplete="off"
+                autocapitalize="off"
+                spellcheck="false"
+              />
+              <button type="button" id="join-room">Join</button>
+            </div>
+          </fieldset>
           <fieldset class="configuration-section">
             <legend>Exercise Multipliers</legend>
             <div class="multiplier-grid">

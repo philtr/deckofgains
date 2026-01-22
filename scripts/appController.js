@@ -24,11 +24,13 @@ import {
   persistState,
   replaceStateWithAutoDrawRemaining,
   serializeState,
+  resolveRoomCode,
   setInitialSerialized,
   subscribeToPopState
 } from './persistence.js';
 import { loadStoredConfiguration, storeConfiguration } from './configStorage.js';
 import { playDrawSound } from './audio.js';
+import { createRoomSync } from './syncClient.js';
 
 const DRAW_BUTTON_DEFAULT_LABEL = 'Draw Cards';
 const AUTO_DRAW_REMAINING_UPDATE_MS = 1000;
@@ -39,6 +41,11 @@ let autoDrawCountdownIntervalId = null;
 let autoDrawNextTriggerAt = null;
 let autoDrawRemainingIntervalId = null;
 let lastStoredConfiguration = null;
+let syncSession = null;
+let syncRoomCode = null;
+let syncSuppressOutbound = false;
+let lastSyncedSerialized = null;
+let syncHasRemoteState = false;
 
 function hasConfigurationParams(params) {
   if (!(params instanceof URLSearchParams)) {
@@ -55,6 +62,61 @@ function hasConfigurationParams(params) {
     'autoInterval',
     'autoRemainingSeconds'
   ].some(param => params.has(param));
+}
+
+function resolveRoomCodeFromLocation() {
+  return resolveRoomCode(new URLSearchParams(window.location.search));
+}
+
+function normalizeRoomCodeInput(value) {
+  if (typeof value !== 'string') {
+    return null;
+  }
+  const trimmed = value.trim();
+  return trimmed ? trimmed : null;
+}
+
+function updateRoomParam(roomCode) {
+  const params = new URLSearchParams(window.location.search);
+  if (roomCode) {
+    params.set('room', roomCode);
+  } else {
+    params.delete('room');
+  }
+  const search = params.toString();
+  const url = `${window.location.pathname}${search ? `?${search}` : ''}`;
+  history.replaceState(null, '', url);
+  setInitialSerialized(params.toString());
+}
+
+function getRoomInputValue() {
+  const roomInput = document.getElementById('room-code');
+  const roomCode = normalizeRoomCodeInput(roomInput?.value);
+  if (roomInput) {
+    roomInput.value = roomCode ?? '';
+  }
+  return roomCode;
+}
+
+async function syncToRoom(roomCode) {
+  if (!roomCode) {
+    stopSyncSession();
+    return null;
+  }
+
+  const { remoteState } = await ensureSyncSession(roomCode);
+  if (remoteState) {
+    applyRemoteState(remoteState);
+  }
+  return remoteState;
+}
+
+function serializeSyncState(state) {
+  return JSON.stringify(state ?? null);
+}
+
+function rememberSyncedState(state) {
+  lastSyncedSerialized = serializeSyncState(state);
 }
 
 function buildConfigurationSnapshot(baseConfiguration, theme) {
@@ -94,6 +156,79 @@ function persistConfigurationIfChanged(configuration) {
 
   storeConfiguration(configuration);
   lastStoredConfiguration = serialized;
+}
+
+function applyRemoteState(remoteState) {
+  if (!remoteState || typeof remoteState !== 'object') {
+    return;
+  }
+
+  syncHasRemoteState = true;
+  syncSuppressOutbound = true;
+  try {
+    replaceState(remoteState);
+    const state = getState();
+    rememberSyncedState(state);
+    applyTheme(state.configuration?.theme);
+    populateConfigurationForm(state);
+    ensureConfigurationListeners();
+    persistConfigurationIfChanged(state.configuration);
+    if (state.started) {
+      renderWorkoutFromState(state);
+    } else {
+      showConfigurationScreen();
+    }
+  } finally {
+    syncSuppressOutbound = false;
+  }
+}
+
+function stopSyncSession() {
+  if (syncSession) {
+    syncSession.stop();
+  }
+  syncSession = null;
+  syncRoomCode = null;
+  lastSyncedSerialized = null;
+  syncHasRemoteState = false;
+}
+
+async function ensureSyncSession(roomCode) {
+  if (!roomCode) {
+    stopSyncSession();
+    return { remoteState: null };
+  }
+
+  if (syncSession && syncRoomCode === roomCode) {
+    return { remoteState: null };
+  }
+
+  stopSyncSession();
+  syncRoomCode = roomCode;
+  syncSession = createRoomSync({
+    roomCode,
+    onRemoteState: applyRemoteState
+  });
+
+  const remoteState = await syncSession.fetchState();
+  if (remoteState) {
+    syncHasRemoteState = true;
+  }
+  syncSession.startStream();
+  return { remoteState };
+}
+
+function sendStateToSync(state) {
+  if (!syncSession || syncSuppressOutbound) {
+    return;
+  }
+
+  const serialized = serializeSyncState(state);
+  if (serialized === lastSyncedSerialized) {
+    return;
+  }
+  lastSyncedSerialized = serialized;
+  syncSession.sendState(state);
 }
 
 function resolveConfigurationFromSources({ params, sourceConfiguration, derivedTheme }) {
@@ -258,6 +393,10 @@ function startAutoDrawCountdown(deadline) {
 
 function populateConfigurationForm(state) {
   const { configuration } = state;
+  const roomInput = document.getElementById('room-code');
+  if (roomInput) {
+    roomInput.value = resolveRoomCodeFromLocation() ?? '';
+  }
   suits.forEach(suit => {
     const select = document.getElementById(`multiplier-${suit}`);
     if (select) {
@@ -312,6 +451,15 @@ function showWorkoutScreen() {
 function ensureConfigurationListeners() {
   if (configurationListenersInitialized) {
     return;
+  }
+
+  const joinRoomButton = document.getElementById('join-room');
+  if (joinRoomButton) {
+    joinRoomButton.addEventListener('click', async () => {
+      const roomCode = getRoomInputValue();
+      updateRoomParam(roomCode);
+      await syncToRoom(roomCode);
+    });
   }
 
   suits.forEach(suit => {
@@ -487,12 +635,26 @@ function appendSprintInstruction(instructionsDiv, text) {
 function appendNewSetButton(instructionsDiv) {
   const newSetButton = document.createElement('button');
   newSetButton.textContent = 'New Set';
-  newSetButton.addEventListener('click', () => {
+  newSetButton.addEventListener('click', async () => {
     const state = getState();
+    const roomCode = resolveRoomCodeFromLocation();
+    const nextState = {
+      configuration: state.configuration,
+      deck: buildDeck(),
+      roundNumber: 1,
+      roundCompleted: false,
+      started: false,
+      lastDrawn: []
+    };
+
+    if (roomCode && syncSession) {
+      await syncSession.sendState(nextState);
+    }
+
     const params = serializeState({
       configuration: state.configuration,
       started: false
-    });
+    }, { roomCode });
     const search = params.toString();
     const url = `${window.location.pathname}${search ? `?${search}` : ''}`;
     window.location.href = url;
@@ -632,7 +794,14 @@ export function drawCards() {
   scheduleAutoDraw(getState());
 }
 
-export function startWorkout() {
+export async function startWorkout() {
+  const roomCode = getRoomInputValue();
+  updateRoomParam(roomCode);
+  const remoteState = await syncToRoom(roomCode);
+  if (remoteState) {
+    return;
+  }
+
   const stateSnapshot = getState();
   const multipliers = { ...defaultMultipliers };
   suits.forEach(suit => {
@@ -716,10 +885,11 @@ function handleRestoredState(restored) {
   }
 }
 
-export function initializeApp() {
+export async function initializeApp() {
   bindStateToWindow(window);
 
   const params = new URLSearchParams(window.location.search);
+  const roomCode = resolveRoomCode(params);
   const persisted = deserializeState(params);
   const derivedTheme = deriveInitialTheme(params);
   const { configuration } = resolveConfigurationFromSources({
@@ -727,37 +897,64 @@ export function initializeApp() {
     sourceConfiguration: persisted.configuration,
     derivedTheme
   });
+  let initialState = {
+    ...persisted,
+    configuration
+  };
 
-  replaceState(
-    {
-      ...persisted,
-      configuration
-    },
-    { silent: true }
-  );
+  let remoteState = null;
+  if (roomCode) {
+    const syncResult = await ensureSyncSession(roomCode);
+    remoteState = syncResult.remoteState;
+    if (remoteState) {
+      initialState = remoteState;
+      syncHasRemoteState = true;
+    }
+  }
 
-  applyTheme(configuration.theme);
-  populateConfigurationForm(getState());
+  replaceState(initialState, { silent: true });
+
+  const stateSnapshot = getState();
+  applyTheme(stateSnapshot.configuration.theme);
+  populateConfigurationForm(stateSnapshot);
   ensureConfigurationListeners();
   setInitialSerialized(params.toString());
-  persistConfigurationIfChanged(getState().configuration);
+  persistConfigurationIfChanged(stateSnapshot.configuration);
 
-  if (getState().started) {
-    renderWorkoutFromState(getState());
+  if (stateSnapshot.started) {
+    renderWorkoutFromState(stateSnapshot);
   } else {
     showConfigurationScreen();
   }
 
-  ensureAutoDrawTimer(getState(), { remainingSeconds: persisted.autoDrawRemainingSeconds });
+  const remainingSeconds = remoteState ? null : persisted.autoDrawRemainingSeconds;
+  ensureAutoDrawTimer(stateSnapshot, { remainingSeconds });
+  if (roomCode) {
+    rememberSyncedState(stateSnapshot);
+  }
 
   subscribe(state => {
     persistState(state);
     ensureAutoDrawTimer(state);
     persistConfigurationIfChanged(state.configuration);
+    sendStateToSync(state);
   });
 
   subscribeToPopState(restored => {
-    handleRestoredState(restored);
-    ensureAutoDrawTimer(getState(), { remainingSeconds: restored.autoDrawRemainingSeconds });
+    const nextParams = new URLSearchParams(window.location.search);
+    const nextRoomCode = resolveRoomCode(nextParams);
+    ensureSyncSession(nextRoomCode).then(({ remoteState: nextRemoteState }) => {
+      if (nextRoomCode) {
+        if (nextRemoteState) {
+          applyRemoteState(nextRemoteState);
+          return;
+        }
+        if (syncHasRemoteState) {
+          return;
+        }
+      }
+      handleRestoredState(restored);
+      ensureAutoDrawTimer(getState(), { remainingSeconds: restored.autoDrawRemainingSeconds });
+    });
   });
 }

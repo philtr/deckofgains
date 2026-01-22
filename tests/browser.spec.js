@@ -8,6 +8,7 @@ const mimeTypes = {
   ".css": "text/css",
   ".html": "text/html",
   ".js": "application/javascript",
+  ".mjs": "application/javascript",
   ".json": "application/json",
   ".map": "application/json",
 };
@@ -117,12 +118,118 @@ async function withPatchedRandom(page, value, callback) {
   }
 }
 
+async function installRoomSocketMock(page, { onUpdate } = {}) {
+  if (onUpdate) {
+    await page.exposeFunction("__reportRoomUpdate", (payload) => {
+      onUpdate(payload);
+    });
+  }
+
+  await page.addInitScript(() => {
+    class FakeChannel {
+      constructor(topic) {
+        this.topic = topic;
+        this.handlers = new Map();
+      }
+
+      on(event, callback) {
+        this.handlers.set(event, callback);
+      }
+
+      join() {
+        const push = {
+          receive: (status, callback) => {
+            if (status === "ok") {
+              setTimeout(() => callback({}), 0);
+            }
+            return push;
+          },
+        };
+        return push;
+      }
+
+      push(event, payload) {
+        if (event === "state:update" && typeof window.__reportRoomUpdate === "function") {
+          window.__reportRoomUpdate(payload);
+        }
+        const push = {
+          receive: () => push,
+        };
+        return push;
+      }
+
+      leave() {}
+    }
+
+    class FakeSocket {
+      constructor() {
+        this.channels = new Map();
+      }
+
+      connect() {}
+
+      disconnect() {}
+
+      channel(topic) {
+        if (!this.channels.has(topic)) {
+          this.channels.set(topic, new FakeChannel(topic));
+        }
+        return this.channels.get(topic);
+      }
+    }
+
+    window.__deckOfGainsSocket = FakeSocket;
+  });
+}
+
 test.describe("Deck of Gains app", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto(baseUrl);
   });
 
   test("shows the configuration screen on load", async ({ page }) => {
+    await expect(page.locator("#configuration-screen")).toBeVisible();
+    await expect(page.locator("#app")).toBeHidden();
+  });
+
+  test("shows the group join box on the setup screen", async ({ page }) => {
+    await expect(page.locator("#group-join")).toBeVisible();
+    await expect(page.locator("#room-code")).toBeVisible();
+    await expect(page.locator("#join-room")).toBeVisible();
+  });
+
+  test("start workout uses the room name from the setup screen", async ({
+    page,
+  }) => {
+    await page.route("http://localhost:4000/api/rooms/crew", (route) => {
+      return route.fulfill({
+        status: 404,
+        contentType: "application/json",
+        body: JSON.stringify({ error: "room_not_found" }),
+      });
+    });
+
+    await page.fill("#room-code", "crew");
+    await page.click("#start-workout");
+
+    await expect(page).toHaveURL(/room=crew/);
+  });
+
+  test("join group keeps the setup screen visible and updates the url", async ({
+    page,
+  }) => {
+    await page.route("http://localhost:4000/api/rooms/crew", (route) => {
+      return route.fulfill({
+        status: 404,
+        contentType: "application/json",
+        body: JSON.stringify({ error: "room_not_found" }),
+      });
+    });
+
+    await page.fill("#room-code", "crew");
+    await page.click("#join-room");
+
+    await expect(page).toHaveURL(/room=crew/);
     await expect(page.locator("#configuration-screen")).toBeVisible();
     await expect(page.locator("#app")).toBeHidden();
   });
@@ -222,6 +329,195 @@ test.describe("Deck of Gains app", () => {
       endless: true,
       autoDraw: { enabled: true, intervalSeconds: 90 },
     });
+  });
+
+  test("room param loads server state and uses it over URL params", async ({
+    page,
+  }) => {
+    const roomState = {
+      configuration: {
+        multipliers: { hearts: 1, spades: 2, diamonds: 3, clubs: 4 },
+        theme: "rugged",
+        endless: false,
+        autoDraw: { enabled: false, intervalSeconds: 150 },
+      },
+      deck: [
+        { suit: "hearts", number: 2 },
+        { suit: "spades", number: 3 },
+      ],
+      roundNumber: 3,
+      roundCompleted: true,
+      started: true,
+      lastDrawn: [
+        { suit: "diamonds", number: 4 },
+        { suit: "clubs", number: 5 },
+        { suit: "hearts", number: 6 },
+        { suit: "spades", number: 7 },
+      ],
+    };
+
+    await page.route("http://localhost:4000/api/rooms/abc", (route) => {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        headers: {
+          "Access-Control-Allow-Origin": "*",
+        },
+        body: JSON.stringify({
+          room_id: "abc",
+          version: 1,
+          updated_at: "2026-01-21T20:00:00Z",
+          state: roomState,
+        }),
+      });
+    });
+
+    await installRoomSocketMock(page);
+
+    const url = new URL(baseUrl);
+    url.searchParams.set("room", "abc");
+    url.searchParams.set("theme", "plain");
+    url.searchParams.set("started", "0");
+
+    await page.goto(url.toString());
+
+    await expect(page.locator("body")).toHaveAttribute("data-theme", "rugged");
+    await expect(page.locator("#configuration-screen")).toBeHidden();
+    await expect(page.locator("#app")).toBeVisible();
+
+    const restored = await page.evaluate(() => ({
+      roundNumber,
+      deckSize: deck.length,
+      roundCompleted,
+    }));
+
+    expect(restored.roundNumber).toBe(3);
+    expect(restored.roundCompleted).toBe(true);
+    expect(restored.deckSize).toBe(2);
+
+    const params = new URL(page.url()).searchParams;
+    expect(params.get("room")).toBe("abc");
+  });
+
+  test("sync param overrides the sync server base url", async ({ page }) => {
+    const roomState = {
+      configuration: {
+        multipliers: { hearts: 1, spades: 2, diamonds: 3, clubs: 4 },
+        theme: "plain",
+        endless: false,
+        autoDraw: { enabled: false, intervalSeconds: 150 },
+      },
+      deck: [
+        { suit: "hearts", number: 2 },
+        { suit: "spades", number: 3 },
+      ],
+      roundNumber: 5,
+      roundCompleted: false,
+      started: true,
+      lastDrawn: [],
+    };
+
+    await page.route("https://sync.deck.fitness/api/rooms/abc", (route) => {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          room_id: "abc",
+          version: 1,
+          updated_at: "2026-01-21T20:00:00Z",
+          state: roomState,
+        }),
+      });
+    });
+
+    await installRoomSocketMock(page);
+
+    const url = new URL(baseUrl);
+    url.searchParams.set("room", "abc");
+    url.searchParams.set("sync", "https://sync.deck.fitness");
+
+    await page.goto(url.toString());
+
+    const restored = await page.evaluate(() => roundNumber);
+
+    expect(restored).toBe(5);
+  });
+
+  test("room param sends state updates to the sync server", async ({
+    page,
+  }) => {
+    const initialState = {
+      configuration: {
+        multipliers: { hearts: 1, spades: 1, diamonds: 1, clubs: 2 },
+        theme: "casino",
+        endless: false,
+        autoDraw: { enabled: false, intervalSeconds: 150 },
+      },
+      deck: [],
+      roundNumber: 1,
+      roundCompleted: false,
+      started: false,
+      lastDrawn: [],
+    };
+
+    await page.route("http://localhost:4000/api/rooms/abc", async (route) => {
+      const request = route.request();
+      if (request.method() === "GET") {
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          headers: {
+            "Access-Control-Allow-Origin": "*",
+          },
+          body: JSON.stringify({
+            room_id: "abc",
+            version: 1,
+            updated_at: "2026-01-21T20:00:00Z",
+            state: initialState,
+          }),
+        });
+      }
+      return route.fulfill({
+        status: 405,
+        contentType: "application/json",
+        headers: {
+          "Access-Control-Allow-Origin": "*",
+        },
+        body: JSON.stringify({ error: "method_not_allowed" }),
+      });
+    });
+
+    let resolveUpdatePayload;
+    const updatePayloadPromise = new Promise((resolve) => {
+      resolveUpdatePayload = resolve;
+    });
+
+    await installRoomSocketMock(page, {
+      onUpdate: (payload) => {
+        resolveUpdatePayload(payload);
+      },
+    });
+
+    const url = new URL(baseUrl);
+    url.searchParams.set("room", "abc");
+
+    await page.goto(url.toString());
+
+    await page.evaluate(() => {
+      roundNumber = 4;
+    });
+
+    const expectedState = await page.evaluate(() => ({
+      configuration,
+      deck,
+      roundNumber,
+      roundCompleted,
+      lastDrawn,
+    }));
+    expectedState.started = false;
+
+    const payload = await updatePayloadPromise;
+    expect(payload).toEqual({ state: expectedState });
   });
 
   test("builds a unique 52 card deck when initializeDeck runs", async ({
@@ -839,6 +1135,119 @@ test.describe("Deck of Gains app", () => {
     expect(params.get("auto")).toBe("1");
     expect(params.get("autoIntervalSeconds")).toBe("125");
     expect(params.get("endless")).toBe(null);
+  });
+
+  test("the New Set button resets the synced room state", async ({ page }) => {
+    const roomState = {
+      configuration: {
+        multipliers: { hearts: 1, spades: 2, diamonds: 3, clubs: 4 },
+        theme: "plain",
+        endless: false,
+        autoDraw: { enabled: false, intervalSeconds: 150 },
+      },
+      deck: [
+        { suit: "hearts", number: 2 },
+        { suit: "spades", number: 3 },
+      ],
+      roundNumber: 12,
+      roundCompleted: false,
+      started: true,
+      lastDrawn: [],
+    };
+
+    await page.route("http://localhost:4000/api/rooms/abc", async (route) => {
+      const request = route.request();
+      if (request.method() === "GET") {
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          headers: {
+            "Access-Control-Allow-Origin": "*",
+          },
+          body: JSON.stringify({
+            room_id: "abc",
+            version: 1,
+            updated_at: "2026-01-21T20:00:00Z",
+            state: roomState,
+          }),
+        });
+      }
+      return route.fulfill({
+        status: 405,
+        contentType: "application/json",
+        headers: {
+          "Access-Control-Allow-Origin": "*",
+        },
+        body: JSON.stringify({ error: "method_not_allowed" }),
+      });
+    });
+
+    let resolveNewSetPayload;
+    const newSetPayloadPromise = new Promise((resolve) => {
+      resolveNewSetPayload = resolve;
+    });
+
+    await installRoomSocketMock(page, {
+      onUpdate: (payload) => {
+        const state = payload?.state ?? {};
+        if (
+          state.started === false &&
+          state.roundNumber === 1 &&
+          state.roundCompleted === false &&
+          Array.isArray(state.deck) &&
+          state.deck.length === 52 &&
+          Array.isArray(state.lastDrawn) &&
+          state.lastDrawn.length === 0
+        ) {
+          resolveNewSetPayload(payload);
+        }
+      },
+    });
+
+    const url = new URL(baseUrl);
+    url.searchParams.set("room", "abc");
+
+    await page.goto(url.toString());
+
+    await setDeck(page, [
+      { suit: "hearts", number: 2 },
+      { suit: "spades", number: 3 },
+      { suit: "diamonds", number: 4 },
+      { suit: "clubs", number: 5 },
+    ]);
+
+    await page.evaluate(() => {
+      roundCompleted = false;
+      roundNumber = 11;
+    });
+
+    await withPatchedRandom(page, 0, async () => {
+      await page.evaluate(() => {
+        drawCards();
+      });
+    });
+
+    await expect(
+      page.locator('#instructions button:has-text("New Set")'),
+    ).toBeVisible();
+
+    await Promise.all([
+      page.waitForNavigation(),
+      page.click('#instructions button:has-text("New Set")'),
+    ]);
+
+    const payload = await newSetPayloadPromise;
+
+    expect(payload).toEqual({
+      state: {
+        configuration: roomState.configuration,
+        deck: expect.any(Array),
+        roundNumber: 1,
+        roundCompleted: false,
+        started: false,
+        lastDrawn: [],
+      },
+    });
   });
 
   test("endless mode removes the round limit and reshuffles after the deck is depleted", async ({
