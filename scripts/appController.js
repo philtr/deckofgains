@@ -33,6 +33,7 @@ import {
   normalizeConfiguration,
   serializeConfiguration
 } from './configuration.js';
+import { createAutoDrawController } from './autoDrawController.js';
 import { playDrawSound } from './audio.js';
 import { checkSyncHealth, createRoomSync } from './syncClient.js';
 
@@ -40,10 +41,6 @@ const DRAW_BUTTON_DEFAULT_LABEL = 'Draw Cards';
 const AUTO_DRAW_REMAINING_UPDATE_MS = 1000;
 
 let configurationListenersInitialized = false;
-let autoDrawTimeoutId = null;
-let autoDrawCountdownIntervalId = null;
-let autoDrawNextTriggerAt = null;
-let autoDrawRemainingIntervalId = null;
 let lastStoredConfiguration = null;
 let syncSession = null;
 let syncRoomCode = null;
@@ -51,6 +48,19 @@ let syncSuppressOutbound = false;
 let lastSyncedSerialized = null;
 let syncHasRemoteState = false;
 let syncEnabled = true;
+
+const autoDrawController = createAutoDrawController({
+  getState,
+  onAutoDraw: () => {
+    drawCards();
+  },
+  persistRemainingSeconds: remainingSeconds => {
+    replaceStateWithAutoDrawRemaining(getState(), remainingSeconds);
+  },
+  defaultIntervalSeconds: defaultAutoDrawIntervalSeconds,
+  drawButtonDefaultLabel: DRAW_BUTTON_DEFAULT_LABEL,
+  autoDrawRemainingUpdateMs: AUTO_DRAW_REMAINING_UPDATE_MS
+});
 
 function hasConfigurationParams(params) {
   if (!(params instanceof URLSearchParams)) {
@@ -314,102 +324,6 @@ function readAutoDrawIntervalFromInputs() {
   return total > 0 ? total : null;
 }
 
-function resetDrawButtonLabel() {
-  const button = document.getElementById('draw-button');
-  if (button) {
-    button.textContent = DRAW_BUTTON_DEFAULT_LABEL;
-  }
-}
-
-function updateDrawButtonLabel() {
-  const button = document.getElementById('draw-button');
-  if (!button) {
-    return;
-  }
-
-  if (!autoDrawNextTriggerAt) {
-    button.textContent = DRAW_BUTTON_DEFAULT_LABEL;
-    return;
-  }
-
-  const remainingMs = Math.max(0, autoDrawNextTriggerAt - Date.now());
-  const remainingSeconds = Math.max(0, Math.ceil(remainingMs / 1000));
-  const minutes = Math.floor(remainingSeconds / 60);
-  const seconds = remainingSeconds % 60;
-  const paddedSeconds = String(seconds).padStart(2, '0');
-  button.textContent = `${DRAW_BUTTON_DEFAULT_LABEL} (${minutes}:${paddedSeconds})`;
-}
-
-function stopAutoDrawCountdown({ preserveLabel = false } = {}) {
-  if (autoDrawCountdownIntervalId !== null) {
-    window.clearInterval(autoDrawCountdownIntervalId);
-    autoDrawCountdownIntervalId = null;
-  }
-
-  autoDrawNextTriggerAt = null;
-
-  if (!preserveLabel) {
-    resetDrawButtonLabel();
-  }
-}
-
-function getAutoDrawRemainingSeconds() {
-  if (!autoDrawNextTriggerAt) {
-    return null;
-  }
-
-  const remainingMs = autoDrawNextTriggerAt - Date.now();
-  const remainingSeconds = Math.max(0, Math.ceil(remainingMs / 1000));
-  return remainingSeconds > 0 ? remainingSeconds : null;
-}
-
-function updateAutoDrawRemainingParam() {
-  const remainingSeconds = getAutoDrawRemainingSeconds();
-  replaceStateWithAutoDrawRemaining(getState(), remainingSeconds);
-}
-
-function stopAutoDrawRemainingPersistence({ preserveParam = false } = {}) {
-  if (autoDrawRemainingIntervalId !== null) {
-    window.clearInterval(autoDrawRemainingIntervalId);
-    autoDrawRemainingIntervalId = null;
-  }
-
-  if (!preserveParam) {
-    replaceStateWithAutoDrawRemaining(getState(), null);
-  }
-}
-
-function startAutoDrawRemainingPersistence() {
-  stopAutoDrawRemainingPersistence({ preserveParam: true });
-  updateAutoDrawRemainingParam();
-  autoDrawRemainingIntervalId = window.setInterval(() => {
-    updateAutoDrawRemainingParam();
-  }, AUTO_DRAW_REMAINING_UPDATE_MS);
-}
-
-function startAutoDrawCountdown(deadline) {
-  stopAutoDrawCountdown({ preserveLabel: true });
-
-  autoDrawNextTriggerAt = deadline;
-  updateDrawButtonLabel();
-
-  const tick = () => {
-    if (!autoDrawNextTriggerAt) {
-      stopAutoDrawCountdown();
-      return;
-    }
-
-    updateDrawButtonLabel();
-
-    if (autoDrawNextTriggerAt - Date.now() <= 0) {
-      // Allow the timeout handler to reset the label after the draw.
-      updateDrawButtonLabel();
-    }
-  };
-
-  autoDrawCountdownIntervalId = window.setInterval(tick, 250);
-}
-
 function populateConfigurationForm(state) {
   const { configuration } = state;
   const roomInput = document.getElementById('room-code');
@@ -583,86 +497,6 @@ function ensureConfigurationListeners() {
   }
 }
 
-function clearAutoDrawTimer({ preserveCountdownLabel = false, preserveRemainingParam = false } = {}) {
-  if (autoDrawTimeoutId !== null) {
-    window.clearTimeout(autoDrawTimeoutId);
-    autoDrawTimeoutId = null;
-  }
-
-  stopAutoDrawCountdown({ preserveLabel: preserveCountdownLabel });
-  stopAutoDrawRemainingPersistence({ preserveParam: preserveRemainingParam });
-}
-
-function shouldContinueAutoDraw(state) {
-  if (!state.started) {
-    return false;
-  }
-
-  const autoDraw = state.configuration.autoDraw ?? {};
-  if (!autoDraw.enabled) {
-    return false;
-  }
-
-  const intervalSeconds = Number.parseInt(autoDraw.intervalSeconds, 10);
-  if (!Number.isFinite(intervalSeconds) || intervalSeconds <= 0) {
-    return false;
-  }
-
-  if (!state.configuration.endless && state.deck.length === 0) {
-    return false;
-  }
-
-  return true;
-}
-
-function scheduleAutoDraw(state, { remainingSeconds } = {}) {
-  const canContinue = shouldContinueAutoDraw(state);
-  clearAutoDrawTimer({
-    preserveCountdownLabel: canContinue,
-    preserveRemainingParam: canContinue
-  });
-
-  if (!canContinue) {
-    return;
-  }
-
-  const configuredSeconds = Number.parseInt(state.configuration.autoDraw.intervalSeconds, 10);
-  const fallbackSeconds = Number.isFinite(configuredSeconds) && configuredSeconds > 0
-    ? configuredSeconds
-    : defaultAutoDrawIntervalSeconds;
-  const requestedRemaining = Number.parseInt(remainingSeconds, 10);
-  const intervalSeconds = Number.isFinite(requestedRemaining) && requestedRemaining > 0
-    ? Math.min(fallbackSeconds, requestedRemaining)
-    : fallbackSeconds;
-  const intervalMs = intervalSeconds * 1000;
-  const deadline = Date.now() + intervalMs;
-
-  autoDrawTimeoutId = window.setTimeout(() => {
-    autoDrawTimeoutId = null;
-    stopAutoDrawCountdown({ preserveLabel: true });
-    const currentState = getState();
-    if (!shouldContinueAutoDraw(currentState)) {
-      clearAutoDrawTimer();
-      return;
-    }
-    drawCards();
-  }, intervalMs);
-
-  startAutoDrawCountdown(deadline);
-  startAutoDrawRemainingPersistence();
-}
-
-function ensureAutoDrawTimer(state, { remainingSeconds } = {}) {
-  if (!shouldContinueAutoDraw(state)) {
-    clearAutoDrawTimer();
-    return;
-  }
-
-  if (autoDrawTimeoutId === null) {
-    scheduleAutoDraw(state, { remainingSeconds });
-  }
-}
-
 function renderTotalsParagraphs(instructionsDiv, totals) {
   const combined = Object.entries(totals)
     .filter(([, reps]) => reps > 0)
@@ -774,10 +608,10 @@ function renderWorkoutFromState(state) {
       drawButton.style.display = '';
     }
 
-    if (!autoDrawNextTriggerAt) {
+    if (!autoDrawController.hasActiveCountdown()) {
       drawButton.textContent = DRAW_BUTTON_DEFAULT_LABEL;
     } else {
-      updateDrawButtonLabel();
+      autoDrawController.refreshDrawButtonLabel();
     }
   }
 }
@@ -841,7 +675,7 @@ export function drawCards() {
   });
 
   serializeAndRenderState();
-  scheduleAutoDraw(getState());
+  autoDrawController.schedule(getState());
 }
 
 export async function startWorkout() {
@@ -882,7 +716,7 @@ export async function startWorkout() {
   const fallbackIntervalSeconds = stateSnapshot.configuration.autoDraw.intervalSeconds ?? defaultAutoDrawIntervalSeconds;
   const intervalSeconds = computedIntervalSeconds > 0 ? computedIntervalSeconds : fallbackIntervalSeconds;
 
-  clearAutoDrawTimer();
+  autoDrawController.clear();
 
   suppressNotifications(() => {
     updateConfiguration({ multipliers, theme, endless });
@@ -902,7 +736,7 @@ export async function startWorkout() {
 
   populateConfigurationForm(getState());
   renderWorkoutFromState(getState());
-  scheduleAutoDraw(getState());
+  autoDrawController.schedule(getState());
 }
 
 function handleRestoredState(restored) {
@@ -931,7 +765,7 @@ function handleRestoredState(restored) {
 
   if (getState().started) {
     renderWorkoutFromState(getState());
-    ensureAutoDrawTimer(getState());
+    autoDrawController.ensure(getState());
   } else {
     showConfigurationScreen();
   }
@@ -987,14 +821,14 @@ export async function initializeApp() {
   }
 
   const remainingSeconds = remoteState ? null : persisted.autoDrawRemainingSeconds;
-  ensureAutoDrawTimer(stateSnapshot, { remainingSeconds });
+  autoDrawController.ensure(stateSnapshot, { remainingSeconds });
   if (roomCode && syncEnabled) {
     rememberSyncedState(stateSnapshot);
   }
 
   subscribe(state => {
     persistState(state);
-    ensureAutoDrawTimer(state);
+    autoDrawController.ensure(state);
     persistConfigurationIfChanged(state.configuration);
     sendStateToSync(state);
   });
@@ -1013,7 +847,7 @@ export async function initializeApp() {
         }
       }
       handleRestoredState(restored);
-      ensureAutoDrawTimer(getState(), { remainingSeconds: restored.autoDrawRemainingSeconds });
+      autoDrawController.ensure(getState(), { remainingSeconds: restored.autoDrawRemainingSeconds });
     });
   });
 }
