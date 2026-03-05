@@ -3,6 +3,7 @@ import {
   defaultTheme,
   defaultAutoDrawIntervalSeconds
 } from './constants.js';
+import { mergeConfiguration, normalizeConfiguration } from './configuration.js';
 
 const state = {
   configuration: {
@@ -31,69 +32,6 @@ function cloneCard(card) {
 
 function cloneDeck(deck) {
   return Array.isArray(deck) ? deck.map(cloneCard) : [];
-}
-
-function normalizeMultipliers(candidate = {}) {
-  return Object.keys(defaultMultipliers).reduce((acc, suit) => {
-    const value = Number.parseInt(candidate[suit], 10);
-    acc[suit] = Number.isFinite(value) ? value : defaultMultipliers[suit];
-    return acc;
-  }, {});
-}
-
-function coerceIntervalSeconds(value, { isMinutes = false } = {}) {
-  if (value == null) {
-    return null;
-  }
-
-  const numeric = Number.parseFloat(value);
-  if (!Number.isFinite(numeric) || numeric <= 0) {
-    return null;
-  }
-
-  const seconds = isMinutes ? numeric * 60 : numeric;
-  return Math.round(seconds);
-}
-
-function sanitizeAutoDraw(partial = {}) {
-  const previous = state.configuration.autoDraw ?? {
-    enabled: false,
-    intervalSeconds: defaultAutoDrawIntervalSeconds
-  };
-
-  const enabled = partial.enabled !== undefined ? Boolean(partial.enabled) : Boolean(previous.enabled);
-  const candidateSeconds = [
-    coerceIntervalSeconds(partial.intervalSeconds),
-    coerceIntervalSeconds(partial.intervalMinutes, { isMinutes: true }),
-    coerceIntervalSeconds(previous.intervalSeconds),
-    coerceIntervalSeconds(previous.intervalMinutes, { isMinutes: true })
-  ].find(value => typeof value === 'number' && Number.isFinite(value) && value > 0);
-  const intervalSeconds = candidateSeconds ?? defaultAutoDrawIntervalSeconds;
-
-  return {
-    enabled,
-    intervalSeconds
-  };
-}
-
-function sanitizeConfiguration(partial = {}) {
-  const multipliers = partial.multipliers
-    ? normalizeMultipliers({ ...state.configuration.multipliers, ...partial.multipliers })
-    : { ...state.configuration.multipliers };
-
-  const theme = partial.theme !== undefined ? partial.theme : state.configuration.theme;
-  const endless = partial.endless !== undefined ? Boolean(partial.endless) : state.configuration.endless;
-  const autoDraw =
-    partial.autoDraw !== undefined
-      ? sanitizeAutoDraw({ ...state.configuration.autoDraw, ...partial.autoDraw })
-      : sanitizeAutoDraw(state.configuration.autoDraw);
-
-  return {
-    multipliers,
-    theme: theme ?? defaultTheme,
-    endless,
-    autoDraw
-  };
 }
 
 function notify() {
@@ -146,7 +84,7 @@ export function getState() {
 }
 
 export function updateConfiguration(partial) {
-  state.configuration = sanitizeConfiguration(partial);
+  state.configuration = mergeConfiguration(state.configuration, partial);
   notify();
 }
 
@@ -178,7 +116,7 @@ export function setLastDrawn(cards) {
 
 export function replaceState(snapshot, { silent = false } = {}) {
   const apply = () => {
-    state.configuration = sanitizeConfiguration(snapshot?.configuration ?? {});
+    state.configuration = normalizeConfiguration(snapshot?.configuration, state.configuration);
     state.deck = cloneDeck(snapshot?.deck);
     const round = Number.parseInt(snapshot?.roundNumber, 10);
     state.roundNumber = Number.isFinite(round) && round > 0 ? round : 1;

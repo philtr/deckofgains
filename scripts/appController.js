@@ -4,7 +4,7 @@ import {
   totalRounds,
   defaultAutoDrawIntervalSeconds
 } from './constants.js';
-import { applyTheme, deriveInitialTheme, resolveTheme } from './theme.js';
+import { applyTheme, deriveInitialTheme } from './theme.js';
 import { buildDeck, calculateTotals, createCardElement } from './deck.js';
 import {
   bindStateToWindow,
@@ -29,6 +29,10 @@ import {
   subscribeToPopState
 } from './persistence.js';
 import { loadStoredConfiguration, storeConfiguration } from './configStorage.js';
+import {
+  normalizeConfiguration,
+  serializeConfiguration
+} from './configuration.js';
 import { playDrawSound } from './audio.js';
 import { checkSyncHealth, createRoomSync } from './syncClient.js';
 
@@ -157,35 +161,6 @@ function rememberSyncedState(state) {
   lastSyncedSerialized = serializeSyncState(state);
 }
 
-function buildConfigurationSnapshot(baseConfiguration, theme) {
-  return {
-    multipliers: baseConfiguration?.multipliers ?? defaultMultipliers,
-    endless: baseConfiguration?.endless ?? false,
-    theme,
-    autoDraw: baseConfiguration?.autoDraw ?? {
-      enabled: false,
-      intervalSeconds: defaultAutoDrawIntervalSeconds
-    }
-  };
-}
-
-function serializeConfiguration(configuration) {
-  const multipliers = suits.reduce((acc, suit) => {
-    acc[suit] = configuration?.multipliers?.[suit] ?? defaultMultipliers[suit];
-    return acc;
-  }, {});
-
-  return JSON.stringify({
-    multipliers,
-    theme: resolveTheme(configuration?.theme),
-    endless: Boolean(configuration?.endless),
-    autoDraw: {
-      enabled: Boolean(configuration?.autoDraw?.enabled),
-      intervalSeconds: Number.parseInt(configuration?.autoDraw?.intervalSeconds, 10)
-    }
-  });
-}
-
 function persistConfigurationIfChanged(configuration) {
   const serialized = serializeConfiguration(configuration);
   if (serialized === lastStoredConfiguration) {
@@ -278,11 +253,12 @@ function resolveConfigurationFromSources({ params, sourceConfiguration, derivedT
   const storedConfiguration = loadStoredConfiguration();
   const useStored = storedConfiguration && !hasConfigurationParams(params);
   const baseConfiguration = useStored ? storedConfiguration : sourceConfiguration;
-  const themeCandidate = baseConfiguration?.theme ?? derivedTheme;
-  const theme = resolveTheme(themeCandidate);
 
   return {
-    configuration: buildConfigurationSnapshot(baseConfiguration, theme)
+    configuration: normalizeConfiguration({
+      ...baseConfiguration,
+      theme: baseConfiguration?.theme ?? derivedTheme
+    })
   };
 }
 

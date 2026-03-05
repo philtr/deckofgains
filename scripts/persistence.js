@@ -5,7 +5,7 @@ import {
   suitLookupByCode,
   defaultAutoDrawIntervalSeconds
 } from './constants.js';
-import { resolveTheme } from './theme.js';
+import { normalizeConfiguration } from './configuration.js';
 
 const CARD_SEPARATOR = '.';
 const MULTIPLIER_SEPARATOR = '.';
@@ -172,34 +172,35 @@ function decodeMultipliers(serialized) {
 }
 
 export function serializeState(state, { autoDrawRemainingSeconds, roomCode } = {}) {
+  const configuration = normalizeConfiguration(state?.configuration);
   const params = new URLSearchParams();
   const resolvedRoom = normalizeRoomCode(roomCode);
   if (resolvedRoom) {
     params.set(ROOM_PARAM, resolvedRoom);
   }
-  const theme = resolveTheme(state?.configuration?.theme);
+  const theme = configuration.theme;
   if (theme) {
     params.set('theme', theme);
   }
-  if (state?.configuration?.endless) {
+  if (configuration.endless) {
     params.set('endless', '1');
   }
 
-  if (state?.configuration?.autoDraw?.enabled) {
+  if (configuration.autoDraw.enabled) {
     params.set('auto', '1');
   }
 
   const remainingSeconds = Number.parseInt(autoDrawRemainingSeconds, 10);
   if (
     state?.started &&
-    state?.configuration?.autoDraw?.enabled &&
+    configuration.autoDraw.enabled &&
     Number.isFinite(remainingSeconds) &&
     remainingSeconds > 0
   ) {
     params.set('autoRemainingSeconds', String(remainingSeconds));
   }
 
-  const autoIntervalSeconds = Number.parseInt(state?.configuration?.autoDraw?.intervalSeconds, 10);
+  const autoIntervalSeconds = Number.parseInt(configuration.autoDraw.intervalSeconds, 10);
   if (Number.isFinite(autoIntervalSeconds) && autoIntervalSeconds > 0) {
     params.set('autoIntervalSeconds', String(autoIntervalSeconds));
     const minutesValue = formatMinutesFromSeconds(autoIntervalSeconds);
@@ -208,7 +209,7 @@ export function serializeState(state, { autoDrawRemainingSeconds, roomCode } = {
     }
   }
 
-  const multipliers = encodeMultipliers(state?.configuration?.multipliers ?? defaultMultipliers);
+  const multipliers = encodeMultipliers(configuration.multipliers ?? defaultMultipliers);
   params.set('multipliers', multipliers);
 
   if (state?.started) {
@@ -228,7 +229,7 @@ export function deserializeState(searchParams) {
     : new URLSearchParams(searchParams ?? '');
 
   const autoDrawRemainingSeconds = resolveRemainingSecondsFromParams(params);
-  const configuration = {
+  const configuration = normalizeConfiguration({
     theme: params.get('theme'),
     endless: params.get('endless') === '1',
     multipliers: decodeMultipliers(params.get('multipliers')) ?? defaultMultipliers,
@@ -236,7 +237,7 @@ export function deserializeState(searchParams) {
       enabled: params.get('auto') === '1',
       intervalSeconds: resolveIntervalSecondsFromParams(params)
     }
-  };
+  });
 
   const started = params.get('started') === '1';
   const round = Number.parseInt(params.get('round'), 10);
