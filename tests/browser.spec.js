@@ -118,6 +118,21 @@ async function withPatchedRandom(page, value, callback) {
   }
 }
 
+async function expectRepSummary(page, expectedItems) {
+  const summaryItems = page.locator("#rep-summary .rep-summary-item");
+  await expect(summaryItems).toHaveCount(expectedItems.length);
+
+  for (const [index, expected] of expectedItems.entries()) {
+    const item = summaryItems.nth(index);
+    await expect(item.locator(".rep-summary-count")).toHaveText(
+      String(expected.reps),
+    );
+    await expect(item.locator(".rep-summary-exercise")).toHaveText(
+      expected.exercise,
+    );
+  }
+}
+
 async function installRoomSocketMock(page, { onUpdate } = {}) {
   if (onUpdate) {
     await page.exposeFunction("__reportRoomUpdate", (payload) => {
@@ -663,6 +678,24 @@ test.describe("Deck of Gains app", () => {
     expect(values.queen).toBe("Q");
     expect(values.king).toBe("K");
     expect(values.seven).toBe(7);
+
+    await startWorkoutWithOptions(page, { theme: "plain" });
+    await setDeck(page, [{ suit: "hearts", number: 1 }]);
+    await page.evaluate(() => {
+      roundCompleted = false;
+    });
+
+    await withPatchedRandom(page, 0, async () => {
+      await page.evaluate(() => {
+        drawCards();
+      });
+    });
+
+    const renderedCard = await page.locator("#drawn-cards .card span").first();
+    await expect(renderedCard).toHaveText("A\u00a0♥️");
+
+    const renderedHtml = await renderedCard.evaluate((node) => node.innerHTML);
+    expect(renderedHtml).toContain("&nbsp;");
   });
 
   test("applies scoring rules for face cards and aces", async ({ page }) => {
@@ -766,6 +799,12 @@ test.describe("Deck of Gains app", () => {
   test("draws the remaining cards when eight or fewer remain", async ({
     page,
   }) => {
+    await startWorkoutWithOptions(page, {
+      theme: "casino",
+      endless: false,
+      multipliers: { hearts: 1, spades: 1, diamonds: 1, clubs: 1 },
+    });
+
     await setDeck(page, [
       { suit: "hearts", number: 2 },
       { suit: "spades", number: 3 },
@@ -982,12 +1021,13 @@ test.describe("Deck of Gains app", () => {
 
     await expect(page.locator("#round-title")).toHaveText("Round 1 of 12");
     await expect(page.locator("#drawn-cards .card")).toHaveCount(4);
-    await expect(page.locator("#instructions p").nth(0)).toHaveText(
-      "Jumping Jacks: 22 reps | Squats: 20 reps | Pushups: 10 reps | Abs: 6 reps",
-    );
-    await expect(page.locator("#instructions p").nth(1)).toHaveText(
-      "Complete a 50 yard sprint.",
-    );
+    await expectRepSummary(page, [
+      { exercise: "Jumping Jacks", reps: 22 },
+      { exercise: "Squats", reps: 20 },
+      { exercise: "Pushups", reps: 10 },
+      { exercise: "Abs", reps: 6 },
+    ]);
+    await expect(page.locator("#instructions p")).toHaveCount(0);
 
     const state = await page.evaluate(() => ({
       deckSize: deck.length,
@@ -1143,9 +1183,12 @@ test.describe("Deck of Gains app", () => {
       });
     });
 
-    await expect(page.locator("#instructions p").nth(0)).toHaveText(
-      "Jumping Jacks: 12 reps | Squats: 21 reps | Pushups: 32 reps | Abs: 36 reps",
-    );
+    await expectRepSummary(page, [
+      { exercise: "Jumping Jacks", reps: 12 },
+      { exercise: "Squats", reps: 21 },
+      { exercise: "Pushups", reps: 32 },
+      { exercise: "Abs", reps: 36 },
+    ]);
   });
 
   test("handles the final draw and sprint instructions when the deck is depleted", async ({
@@ -1174,13 +1217,15 @@ test.describe("Deck of Gains app", () => {
       });
     });
 
-    const instructions = await page
-      .locator("#instructions p")
-      .allTextContents();
-    expect(instructions[0]).toBe(
-      "Jumping Jacks: 4 reps | Squats: 6 reps | Pushups: 8 reps | Abs: 10 reps",
+    await expectRepSummary(page, [
+      { exercise: "Jumping Jacks", reps: 4 },
+      { exercise: "Squats", reps: 6 },
+      { exercise: "Pushups", reps: 8 },
+      { exercise: "Abs", reps: 10 },
+    ]);
+    await expect(page.locator("#instructions p").last()).toHaveText(
+      "Complete 2 sprints of 50 yards each.",
     );
-    expect(instructions[1]).toBe("Complete 2 sprints of 50 yards each.");
 
     const state = await page.evaluate(() => ({
       deckSize: deck.length,
@@ -1399,10 +1444,7 @@ test.describe("Deck of Gains app", () => {
         document.getElementById("draw-button").style.display || "",
     }));
 
-    const instructionsAfterFirstDraw = await page
-      .locator("#instructions p")
-      .allTextContents();
-    expect(instructionsAfterFirstDraw[1]).toBe("Complete a 50 yard sprint.");
+    await expect(page.locator("#instructions p")).toHaveCount(0);
     await expect(page.locator("#instructions button")).toHaveCount(0);
 
     expect(firstDrawState.deckSize).toBe(0);
@@ -1479,12 +1521,13 @@ test.describe("Deck of Gains app", () => {
       await page.click("#draw-button");
     });
 
-    await expect(page.locator("#instructions p").nth(0)).toHaveText(
-      "Jumping Jacks: 22 reps | Squats: 30 reps | Pushups: 20 reps | Abs: 15 reps",
-    );
-    await expect(page.locator("#instructions p").nth(1)).toHaveText(
-      "Complete a 50 yard sprint.",
-    );
+    await expectRepSummary(page, [
+      { exercise: "Jumping Jacks", reps: 22 },
+      { exercise: "Squats", reps: 30 },
+      { exercise: "Pushups", reps: 20 },
+      { exercise: "Abs", reps: 15 },
+    ]);
+    await expect(page.locator("#instructions p")).toHaveCount(0);
 
     const url = page.url();
     const params = new URL(url).searchParams;
@@ -1505,12 +1548,13 @@ test.describe("Deck of Gains app", () => {
     await expect(page.locator("body")).toHaveAttribute("data-theme", "rugged");
     await expect(page.locator("#round-title")).toHaveText("Round 1 of 12");
     await expect(page.locator("#drawn-cards .card")).toHaveCount(4);
-    await expect(page.locator("#instructions p").nth(0)).toHaveText(
-      "Jumping Jacks: 22 reps | Squats: 30 reps | Pushups: 20 reps | Abs: 15 reps",
-    );
-    await expect(page.locator("#instructions p").nth(1)).toHaveText(
-      "Complete a 50 yard sprint.",
-    );
+    await expectRepSummary(page, [
+      { exercise: "Jumping Jacks", reps: 22 },
+      { exercise: "Squats", reps: 30 },
+      { exercise: "Pushups", reps: 20 },
+      { exercise: "Abs", reps: 15 },
+    ]);
+    await expect(page.locator("#instructions p")).toHaveCount(0);
 
     const restoredState = await page.evaluate(() => ({
       deckSize: deck.length,
@@ -1534,6 +1578,184 @@ test.describe("Deck of Gains app", () => {
       diamonds: 4,
       clubs: 5,
     });
+  });
+
+  test("uses a split cards-and-summary layout on landscape tablet screens", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1180, height: 820 });
+
+    await startWorkoutWithOptions(page, {
+      theme: "rugged",
+      multipliers: { hearts: 2, spades: 2, diamonds: 2, clubs: 2 },
+    });
+
+    await setDeck(page, [
+      { suit: "hearts", number: 1 },
+      { suit: "spades", number: 12 },
+      { suit: "diamonds", number: 5 },
+      { suit: "clubs", number: 3 },
+    ]);
+
+    await page.evaluate(() => {
+      roundCompleted = false;
+    });
+
+    await withPatchedRandom(page, 0, async () => {
+      await page.evaluate(() => {
+        drawCards();
+      });
+    });
+
+    await expectRepSummary(page, [
+      { exercise: "Jumping Jacks", reps: 22 },
+      { exercise: "Squats", reps: 20 },
+      { exercise: "Pushups", reps: 10 },
+      { exercise: "Abs", reps: 6 },
+    ]);
+
+    const layout = await page.evaluate(() => {
+      const workoutGridRect = document
+        .getElementById("workout-grid")
+        ?.getBoundingClientRect();
+      const cardRects = Array.from(document.querySelectorAll("#drawn-cards .card"))
+        .slice(0, 4)
+        .map((card) => card.getBoundingClientRect());
+      const summaryRects = Array.from(
+        document.querySelectorAll(".rep-summary-item"),
+      )
+        .slice(0, 4)
+        .map((item) => item.getBoundingClientRect());
+      const countRect = document
+        .querySelector(".rep-summary-count")
+        ?.getBoundingClientRect();
+      const exerciseRect = document
+        .querySelector(".rep-summary-exercise")
+        ?.getBoundingClientRect();
+
+      return {
+        workoutGridLeft: workoutGridRect?.left ?? 0,
+        workoutGridRight: workoutGridRect?.right ?? 0,
+        firstCardTop: cardRects[0]?.top ?? 0,
+        thirdCardTop: cardRects[2]?.top ?? 0,
+        firstCardLeft: cardRects[0]?.left ?? 0,
+        secondCardLeft: cardRects[1]?.left ?? 0,
+        secondCardRight: cardRects[1]?.right ?? 0,
+        firstCardWidth: cardRects[0]?.width ?? 0,
+        firstCardHeight: cardRects[0]?.height ?? 0,
+        firstSummaryTop: summaryRects[0]?.top ?? 0,
+        thirdSummaryTop: summaryRects[2]?.top ?? 0,
+        firstSummaryLeft: summaryRects[0]?.left ?? 0,
+        secondSummaryLeft: summaryRects[1]?.left ?? 0,
+        firstSummaryWidth: summaryRects[0]?.width ?? 0,
+        firstSummaryHeight: summaryRects[0]?.height ?? 0,
+        cardFontSize: Number.parseFloat(
+          getComputedStyle(document.querySelector("#drawn-cards .card")).fontSize,
+        ),
+        countFontSize: Number.parseFloat(
+          getComputedStyle(document.querySelector(".rep-summary-count")).fontSize,
+        ),
+        countHeight: countRect?.height ?? 0,
+        countBottom: countRect?.bottom ?? 0,
+        exerciseTop: exerciseRect?.top ?? 0,
+      };
+    });
+
+    expect(layout.workoutGridLeft).toBeLessThanOrEqual(layout.firstCardLeft);
+    expect(layout.workoutGridRight).toBeGreaterThanOrEqual(
+      layout.secondSummaryLeft,
+    );
+    expect(layout.firstSummaryLeft - layout.secondCardRight).toBeGreaterThan(20);
+    expect(layout.thirdCardTop).toBeGreaterThan(layout.firstCardTop);
+    expect(layout.secondCardLeft).toBeGreaterThan(layout.firstCardLeft);
+    expect(Math.abs(layout.firstSummaryTop - layout.firstCardTop)).toBeLessThan(8);
+    expect(layout.thirdSummaryTop).toBeGreaterThan(layout.firstSummaryTop);
+    expect(layout.secondSummaryLeft).toBeGreaterThan(layout.firstSummaryLeft);
+    expect(layout.countHeight).toBeGreaterThan(40);
+    expect(layout.exerciseTop).toBeGreaterThan(layout.countBottom);
+    expect(layout.firstCardWidth / layout.firstCardHeight).toBeGreaterThan(0.75);
+    expect(layout.firstCardWidth / layout.firstCardHeight).toBeLessThan(1.25);
+    expect(layout.firstSummaryWidth / layout.firstSummaryHeight).toBeGreaterThan(
+      0.75,
+    );
+    expect(layout.firstSummaryWidth / layout.firstSummaryHeight).toBeLessThan(
+      1.25,
+    );
+    expect(
+      Math.abs(layout.firstCardWidth - layout.firstSummaryWidth),
+    ).toBeLessThan(16);
+    expect(
+      Math.abs(layout.firstCardHeight - layout.firstSummaryHeight),
+    ).toBeLessThan(16);
+    expect(layout.cardFontSize).toBeGreaterThan(40);
+    expect(layout.countFontSize).toBeGreaterThan(80);
+  });
+
+  test("rep summary keeps all exercises visible with zero counts", async ({
+    page,
+  }) => {
+    await startWorkoutWithOptions(page, {
+      theme: "casino",
+      multipliers: { hearts: 2, spades: 2, diamonds: 2, clubs: 2 },
+    });
+
+    await setDeck(page, [{ suit: "hearts", number: 4 }]);
+
+    await page.evaluate(() => {
+      roundCompleted = false;
+      roundNumber = 11;
+    });
+
+    await withPatchedRandom(page, 0, async () => {
+      await page.evaluate(() => {
+        drawCards();
+      });
+    });
+
+    await expectRepSummary(page, [
+      { exercise: "Jumping Jacks", reps: 8 },
+      { exercise: "Squats", reps: 0 },
+      { exercise: "Pushups", reps: 0 },
+      { exercise: "Abs", reps: 0 },
+    ]);
+  });
+
+  test("mobile workout layout stays within the viewport after a draw", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+
+    await startWorkoutWithOptions(page, {
+      theme: "plain",
+      multipliers: { hearts: 2, spades: 2, diamonds: 2, clubs: 2 },
+    });
+
+    await setDeck(page, [
+      { suit: "hearts", number: 1 },
+      { suit: "spades", number: 12 },
+      { suit: "diamonds", number: 5 },
+      { suit: "clubs", number: 3 },
+    ]);
+
+    await page.evaluate(() => {
+      roundCompleted = false;
+    });
+
+    await withPatchedRandom(page, 0, async () => {
+      await page.evaluate(() => {
+        drawCards();
+      });
+    });
+
+    const layout = await page.evaluate(() => {
+      const appRect = document.getElementById("app")?.getBoundingClientRect();
+      return {
+        appBottom: appRect?.bottom ?? 0,
+        viewportHeight: window.innerHeight,
+      };
+    });
+
+    expect(layout.appBottom).toBeLessThanOrEqual(layout.viewportHeight);
   });
 
   test("drawCards always plays the whoosh sound regardless of theme", async ({

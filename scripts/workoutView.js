@@ -1,3 +1,5 @@
+import { exercises } from './constants.js';
+
 function getAutoDrawIntervalElements() {
   return {
     container: document.getElementById('auto-draw-interval-container'),
@@ -114,17 +116,28 @@ function showWorkoutScreen() {
   }
 }
 
-function renderTotalsParagraphs(instructionsDiv, totals) {
-  const combined = Object.entries(totals)
-    .filter(([, reps]) => reps > 0)
-    .map(([exercise, reps]) => `${exercise}: ${reps} reps`)
-    .join(' | ');
+function setTileOrder(element, mobileOrder, landscapeOrder) {
+  element.style.setProperty('--tile-order-mobile', String(mobileOrder));
+  element.style.setProperty('--tile-order-landscape', String(landscapeOrder));
+}
 
-  if (combined) {
-    const instruction = document.createElement('p');
-    instruction.textContent = combined;
-    instructionsDiv.appendChild(instruction);
-  }
+function renderTotalsParagraphs(summaryDiv, totals) {
+  Object.values(exercises).forEach((exercise, index) => {
+    const item = document.createElement('div');
+    item.className = 'rep-summary-item';
+    setTileOrder(item, index + 5, index + 3 + Math.floor(index / 2) * 2);
+
+    const count = document.createElement('span');
+    count.className = 'rep-summary-count';
+    count.textContent = String(totals[exercise] ?? 0);
+
+    const label = document.createElement('span');
+    label.className = 'rep-summary-exercise';
+    label.textContent = exercise;
+
+    item.append(count, label);
+    summaryDiv.appendChild(item);
+  });
 }
 
 function appendSprintInstruction(instructionsDiv, text) {
@@ -162,11 +175,15 @@ export function renderWorkoutFromState({
   updateRoundTitle({ state, totalRounds });
 
   const drawnCardsDiv = document.getElementById('drawn-cards');
+  const repSummaryDiv = document.getElementById('rep-summary');
   const instructionsDiv = document.getElementById('instructions');
   const drawButton = document.getElementById('draw-button');
 
   if (drawnCardsDiv) {
     drawnCardsDiv.textContent = '';
+  }
+  if (repSummaryDiv) {
+    repSummaryDiv.textContent = '';
   }
   if (instructionsDiv) {
     instructionsDiv.textContent = '';
@@ -174,25 +191,23 @@ export function renderWorkoutFromState({
 
   const cards = state.lastDrawn;
   if (drawnCardsDiv && cards.length > 0) {
-    cards.forEach(card => {
-      drawnCardsDiv.appendChild(createCardElement(card));
+    cards.forEach((card, index) => {
+      const cardElement = createCardElement(card);
+      setTileOrder(cardElement, index + 1, index + 1 + Math.floor(index / 2) * 2);
+      drawnCardsDiv.appendChild(cardElement);
     });
   }
 
-  if (instructionsDiv && cards.length > 0) {
+  if (repSummaryDiv && cards.length > 0) {
     const totals = calculateTotals(cards, state.configuration);
-    renderTotalsParagraphs(instructionsDiv, totals);
+    renderTotalsParagraphs(repSummaryDiv, totals);
   }
 
   const deckLength = state.deck.length;
   if (instructionsDiv) {
-    if (state.configuration.endless) {
-      appendSprintInstruction(instructionsDiv, 'Complete a 50 yard sprint.');
-    } else if (deckLength === 0 && cards.length > 0) {
+    if (!state.configuration.endless && deckLength === 0 && cards.length > 0) {
       appendSprintInstruction(instructionsDiv, 'Complete 2 sprints of 50 yards each.');
       appendNewSetButton(instructionsDiv);
-    } else if (cards.length > 0) {
-      appendSprintInstruction(instructionsDiv, 'Complete a 50 yard sprint.');
     }
   }
 

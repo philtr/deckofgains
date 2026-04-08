@@ -30,6 +30,13 @@ body {
   max-width: 800px;
 }
 
+#workout-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  margin: 24px 0;
+}
+
 #configuration-screen {
   width: 100%;
   max-width: 720px;
@@ -245,14 +252,63 @@ body {
   margin: 0;
 }
 
-#drawn-cards {
+#workout-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+#drawn-cards,
+#rep-summary {
   display: grid;
-  gap: 10px;
-  margin-bottom: 20px;
   grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+#instructions {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+#instructions p {
+  margin: 0;
+}
+
+.rep-summary-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 18px 14px;
+  container-type: inline-size;
+  border-radius: 14px;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+  min-height: 112px;
+}
+
+.rep-summary-count {
+  font-size: clamp(1.9rem, 34cqi, 4.75rem);
+  line-height: 0.95;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+}
+
+.rep-summary-exercise {
+  font-size: 1.1rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
 }
 
 .card {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  container-type: inline-size;
   color: #000000;
   font-size: 2rem;
   font-weight: bold;
@@ -262,6 +318,11 @@ body {
   border-radius: 10px;
   text-align: center;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.card,
+.rep-summary-item {
+  order: var(--tile-order-mobile, 0);
 }
 
 .red {
@@ -308,7 +369,59 @@ button {
 
 @media only screen and (orientation: landscape) {
   #drawn-cards {
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media only screen and (orientation: landscape) and (min-width: 900px) {
+  #app {
+    max-width: 1360px;
+  }
+
+  #workout-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    align-items: start;
+    gap: 28px;
+  }
+
+  #drawn-cards,
+  #rep-summary {
+    display: contents;
+  }
+
+  #workout-layout {
+    gap: 20px;
+  }
+
+  #instructions {
+    justify-content: flex-start;
+    text-align: left;
+  }
+
+  .rep-summary-item {
+    aspect-ratio: 1 / 1;
+    align-items: flex-start;
+    text-align: left;
+    padding: 22px 24px;
+  }
+
+  .rep-summary-count {
+    font-size: clamp(2.5rem, 43cqi, 6rem);
+  }
+
+  .rep-summary-exercise {
+    font-size: clamp(1.15rem, 10cqi, 1.6rem);
+  }
+
+  .card {
+    aspect-ratio: 1 / 1;
+    font-size: clamp(2.4rem, 18cqi, 5rem);
+  }
+
+  .card,
+  .rep-summary-item {
+    order: var(--tile-order-landscape, 0);
   }
 }
 
@@ -357,6 +470,16 @@ body[data-theme="plain"] {
 
   .theme-option span {
     color: #1f2933;
+  }
+
+  .rep-summary-item {
+    background: rgba(255, 255, 255, 0.9);
+    border-color: rgba(148, 163, 184, 0.35);
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
+  }
+
+  .rep-summary-exercise {
+    color: #475569;
   }
 
   button {
@@ -458,6 +581,16 @@ body[data-theme="casino"] {
     color: #ffffff;
   }
 
+  .rep-summary-item {
+    background: rgba(0, 0, 0, 0.22);
+    border-color: rgba(255, 255, 255, 0.18);
+    box-shadow: 0 16px 30px rgba(0, 0, 0, 0.2);
+  }
+
+  .rep-summary-exercise {
+    color: rgba(246, 241, 161, 0.92);
+  }
+
   button {
     background: #f6f1a1;
     color: #064420;
@@ -497,12 +630,25 @@ body[data-theme="rugged"] {
   }
 
   .card {
-    font-size: 2.8rem;
     font-weight: normal;
     padding: 25px;
     text-transform: uppercase;
     box-shadow: 0 12px 24px rgba(0, 0, 0, 0.9);
     transition: transform 0.2s;
+  }
+
+  .rep-summary-item {
+    background: rgba(0, 0, 0, 0.45);
+    border-color: rgba(255, 69, 0, 0.45);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.45);
+  }
+
+  .rep-summary-count {
+    line-height: 0.88;
+  }
+
+  .rep-summary-exercise {
+    color: rgba(255, 255, 255, 0.8);
   }
 
   button {

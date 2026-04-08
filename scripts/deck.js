@@ -63,6 +63,6 @@ export function createCardElement(card) {
   const isRed = card.suit === 'hearts' || card.suit === 'diamonds';
   const classes = isRed ? 'red' : '';
   const value = getCardDisplayValue(card.number);
-  cardElement.innerHTML = `<span class="${classes}">${value} ${suitSymbols[card.suit]}</span>`;
+  cardElement.innerHTML = `<span class="${classes}">${value}&nbsp;${suitSymbols[card.suit]}</span>`;
   return cardElement;
 }
