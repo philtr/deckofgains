@@ -22,7 +22,8 @@ Here’s what the **Rugged Theme** brings:
 - A dark, smoky background to remind you of the battlefield of gains.
 - Fiery orange and gold highlights that scream, "I EAT BURPEES FOR BREAKFAST."
 - Hover effects on cards so epic they might just make you flex involuntarily.
-- Fonts so bold you’ll think they’ve been benching their whole life.
+- `Tektur` for rugged display elements like headings, buttons, cards, and rep counts.
+- `Google Sans Code` for rugged copy and controls so the setup and workout details stay readable.
 
 Activate the **Rugged Theme** and prove you’re ready to enter the tribe of legends.
 

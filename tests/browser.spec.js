@@ -746,6 +746,66 @@ test.describe("Deck of Gains app", () => {
     expect(activeTheme).toBe("casino");
   });
 
+  test("rugged theme applies Tektur to display elements and Google Sans Code to copy", async ({
+    page,
+  }) => {
+    await startWorkoutWithOptions(page, {
+      theme: "rugged",
+      multipliers: { hearts: 2, spades: 2, diamonds: 2, clubs: 2 },
+    });
+
+    await setDeck(page, [
+      { suit: "hearts", number: 8 },
+      { suit: "spades", number: 7 },
+      { suit: "diamonds", number: 6 },
+      { suit: "clubs", number: 5 },
+    ]);
+
+    await withPatchedRandom(page, 0, async () => {
+      await page.evaluate(() => {
+        drawCards();
+      });
+    });
+
+    const typography = await page.evaluate(() => {
+      const read = (selector) => {
+        const element = document.querySelector(selector);
+        const styles = element ? getComputedStyle(element) : null;
+        return styles
+          ? {
+              fontFamily: styles.fontFamily,
+              fontWeight: styles.fontWeight,
+              fontStretch: styles.fontStretch,
+            }
+          : null;
+      };
+
+      return {
+        heading: read("#round-title"),
+        button: read("#draw-button"),
+        count: read(".rep-summary-count"),
+        exercise: read(".rep-summary-exercise"),
+        footer: read(".site-footer"),
+        paragraph: read("#instructions p"),
+        select: read("#multiplier-hearts"),
+      };
+    });
+
+    expect(typography.heading?.fontFamily).toContain("Tektur");
+    expect(typography.heading?.fontWeight).toBe("700");
+    expect(typography.heading?.fontStretch).toBe("100%");
+    expect(typography.button?.fontFamily).toContain("Tektur");
+    expect(typography.button?.fontWeight).toBe("700");
+    expect(typography.button?.fontStretch).toBe("100%");
+    expect(typography.count?.fontFamily).toContain("Tektur");
+    expect(typography.count?.fontWeight).toBe("700");
+    expect(typography.count?.fontStretch).toBe("100%");
+    expect(typography.exercise?.fontFamily).toContain("Google Sans Code");
+    expect(typography.footer?.fontFamily).toContain("Google Sans Code");
+    expect(typography.paragraph?.fontFamily).toContain("Google Sans Code");
+    expect(typography.select?.fontFamily).toContain("Google Sans Code");
+  });
+
   test("reserves padding for mobile safe areas", async ({ page }) => {
     const padding = await page.evaluate(() => {
       const styles = window.getComputedStyle(document.body);

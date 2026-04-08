@@ -610,14 +610,43 @@ body[data-theme="casino"] {
 }
 
 body[data-theme="rugged"] {
+  --rugged-display-font: "Tektur", sans-serif;
+  --rugged-copy-font: "Google Sans Code", monospace;
   color: #ffffff;
   background-color: #4a574f;
   background-image: linear-gradient(to bottom, #2a2a2a, #4a574f);
-  font-family: "Black Ops One", sans-serif;
+  font-family: var(--rugged-copy-font);
   text-transform: uppercase;
 
+  #configuration-screen h1,
+  #round-title,
+  #configuration-screen legend,
+  .label-title,
+  .group-join-active-label,
+  button,
+  .card,
+  .rep-summary-count {
+    font-family: var(--rugged-display-font);
+    font-weight: 700;
+    font-stretch: 100%;
+    font-variation-settings:
+      "wght" 700,
+      "wdth" 100;
+  }
+
+  .configuration-subtitle,
+  .group-join-active-name,
+  #instructions p,
+  .rep-summary-exercise,
+  .site-footer,
+  .theme-option,
+  .mode-option,
+  input,
+  select {
+    font-family: var(--rugged-copy-font);
+  }
+
   #round-title {
-    font-weight: normal;
     font-size: 1.75em;
 
     &::before {
@@ -630,7 +659,6 @@ body[data-theme="rugged"] {
   }
 
   .card {
-    font-weight: normal;
     padding: 25px;
     text-transform: uppercase;
     box-shadow: 0 12px 24px rgba(0, 0, 0, 0.9);
@@ -654,8 +682,6 @@ body[data-theme="rugged"] {
   button {
     background-color: #ff4500;
     color: #ffffff;
-    font-family: "Black Ops One", sans-serif;
-    font-weight: normal;
     text-transform: uppercase;
     box-shadow: 0 6px 12px rgba(0, 0, 0, 0.7);
     border-radius: 5px;
