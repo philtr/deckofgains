@@ -1,4 +1,9 @@
-import { exercises, suitSymbols, suits, defaultMultipliers } from './constants.js';
+import {
+  exercises,
+  suitSymbols,
+  suits,
+  defaultMultipliers,
+} from "./constants.js";
 
 export function buildDeck() {
   const cards = [];
@@ -13,13 +18,13 @@ export function buildDeck() {
 export function getCardDisplayValue(number) {
   switch (number) {
     case 1:
-      return 'A';
+      return "A";
     case 11:
-      return 'J';
+      return "J";
     case 12:
-      return 'Q';
+      return "Q";
     case 13:
-      return 'K';
+      return "K";
     default:
       return number;
   }
@@ -41,7 +46,7 @@ export function calculateTotals(cards, configuration) {
     return acc;
   }, {});
 
-  cards.forEach(card => {
+  cards.forEach((card) => {
     const exercise = exercises[card.suit];
     if (!exercise) {
       return;
@@ -49,7 +54,7 @@ export function calculateTotals(cards, configuration) {
     const multiplierSource = configuration?.multipliers ?? {};
     const multiplier = Number.isFinite(multiplierSource[card.suit])
       ? multiplierSource[card.suit]
-      : defaultMultipliers[card.suit] ?? 1;
+      : (defaultMultipliers[card.suit] ?? 1);
     const baseValue = getCardValue(card.number);
     totals[exercise] += baseValue * multiplier;
   });
@@ -58,10 +63,10 @@ export function calculateTotals(cards, configuration) {
 }
 
 export function createCardElement(card) {
-  const cardElement = document.createElement('div');
-  cardElement.className = 'card';
-  const isRed = card.suit === 'hearts' || card.suit === 'diamonds';
-  const classes = isRed ? 'red' : '';
+  const cardElement = document.createElement("div");
+  cardElement.className = "card";
+  const isRed = card.suit === "hearts" || card.suit === "diamonds";
+  const classes = isRed ? "red" : "";
   const value = getCardDisplayValue(card.number);
   cardElement.innerHTML = `<span class="${classes}">${value}&nbsp;${suitSymbols[card.suit]}</span>`;
   return cardElement;

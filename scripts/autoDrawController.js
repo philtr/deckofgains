@@ -3,9 +3,9 @@ export function createAutoDrawController({
   onAutoDraw,
   persistRemainingSeconds,
   defaultIntervalSeconds,
-  drawButtonDefaultLabel = 'Draw Cards',
+  drawButtonDefaultLabel = "Draw Cards",
   autoDrawRemainingUpdateMs = 1000,
-  windowRef = window
+  windowRef = window,
 }) {
   let autoDrawTimeoutId = null;
   let autoDrawCountdownIntervalId = null;
@@ -13,7 +13,7 @@ export function createAutoDrawController({
   let autoDrawRemainingIntervalId = null;
 
   function getDrawButton() {
-    return document.getElementById('draw-button');
+    return document.getElementById("draw-button");
   }
 
   function resetDrawButtonLabel() {
@@ -38,7 +38,7 @@ export function createAutoDrawController({
     const remainingSeconds = Math.max(0, Math.ceil(remainingMs / 1000));
     const minutes = Math.floor(remainingSeconds / 60);
     const seconds = remainingSeconds % 60;
-    const paddedSeconds = String(seconds).padStart(2, '0');
+    const paddedSeconds = String(seconds).padStart(2, "0");
     button.textContent = `${drawButtonDefaultLabel} (${minutes}:${paddedSeconds})`;
   }
 
@@ -111,7 +111,10 @@ export function createAutoDrawController({
     autoDrawCountdownIntervalId = windowRef.setInterval(tick, 250);
   }
 
-  function clear({ preserveCountdownLabel = false, preserveRemainingParam = false } = {}) {
+  function clear({
+    preserveCountdownLabel = false,
+    preserveRemainingParam = false,
+  } = {}) {
     if (autoDrawTimeoutId !== null) {
       windowRef.clearTimeout(autoDrawTimeoutId);
       autoDrawTimeoutId = null;
@@ -147,21 +150,26 @@ export function createAutoDrawController({
     const canContinue = shouldContinue(state);
     clear({
       preserveCountdownLabel: canContinue,
-      preserveRemainingParam: canContinue
+      preserveRemainingParam: canContinue,
     });
 
     if (!canContinue) {
       return;
     }
 
-    const configuredSeconds = Number.parseInt(state.configuration.autoDraw.intervalSeconds, 10);
-    const fallbackSeconds = Number.isFinite(configuredSeconds) && configuredSeconds > 0
-      ? configuredSeconds
-      : defaultIntervalSeconds;
+    const configuredSeconds = Number.parseInt(
+      state.configuration.autoDraw.intervalSeconds,
+      10,
+    );
+    const fallbackSeconds =
+      Number.isFinite(configuredSeconds) && configuredSeconds > 0
+        ? configuredSeconds
+        : defaultIntervalSeconds;
     const requestedRemaining = Number.parseInt(remainingSeconds, 10);
-    const intervalSeconds = Number.isFinite(requestedRemaining) && requestedRemaining > 0
-      ? Math.min(fallbackSeconds, requestedRemaining)
-      : fallbackSeconds;
+    const intervalSeconds =
+      Number.isFinite(requestedRemaining) && requestedRemaining > 0
+        ? Math.min(fallbackSeconds, requestedRemaining)
+        : fallbackSeconds;
     const intervalMs = intervalSeconds * 1000;
     const deadline = Date.now() + intervalMs;
 
@@ -204,6 +212,6 @@ export function createAutoDrawController({
     ensure,
     schedule,
     refreshDrawButtonLabel,
-    hasActiveCountdown
+    hasActiveCountdown,
   };
 }

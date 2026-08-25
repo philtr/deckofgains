@@ -165,7 +165,10 @@ async function installRoomSocketMock(page, { onUpdate } = {}) {
       }
 
       push(event, payload) {
-        if (event === "state:update" && typeof window.__reportRoomUpdate === "function") {
+        if (
+          event === "state:update" &&
+          typeof window.__reportRoomUpdate === "function"
+        ) {
           window.__reportRoomUpdate(payload);
         }
         const push = {
@@ -337,9 +340,7 @@ test.describe("Deck of Gains app", () => {
     await expect(page.locator("#app")).toBeHidden();
   });
 
-  test("pressing Enter in the room input joins the group", async ({
-    page,
-  }) => {
+  test("pressing Enter in the room input joins the group", async ({ page }) => {
     await page.route("http://localhost:4000/api/rooms/crew", (route) => {
       return route.fulfill({
         status: 404,
@@ -381,17 +382,20 @@ test.describe("Deck of Gains app", () => {
   test("restores configuration from localStorage when URL has no configuration params", async ({
     page,
   }) => {
-    await page.addInitScript((storedConfig) => {
-      window.localStorage.setItem(
-        "deckOfGains:configuration",
-        JSON.stringify(storedConfig),
-      );
-    }, {
-      multipliers: { hearts: 3, spades: 2, diamonds: 4, clubs: 5 },
-      theme: "plain",
-      endless: true,
-      autoDraw: { enabled: true, intervalSeconds: 95 },
-    });
+    await page.addInitScript(
+      (storedConfig) => {
+        window.localStorage.setItem(
+          "deckOfGains:configuration",
+          JSON.stringify(storedConfig),
+        );
+      },
+      {
+        multipliers: { hearts: 3, spades: 2, diamonds: 4, clubs: 5 },
+        theme: "plain",
+        endless: true,
+        autoDraw: { enabled: true, intervalSeconds: 95 },
+      },
+    );
 
     await page.goto(baseUrl);
 
@@ -413,17 +417,20 @@ test.describe("Deck of Gains app", () => {
   test("URL configuration overrides localStorage and replaces it", async ({
     page,
   }) => {
-    await page.addInitScript((storedConfig) => {
-      window.localStorage.setItem(
-        "deckOfGains:configuration",
-        JSON.stringify(storedConfig),
-      );
-    }, {
-      multipliers: { hearts: 1, spades: 1, diamonds: 1, clubs: 1 },
-      theme: "rugged",
-      endless: false,
-      autoDraw: { enabled: false, intervalSeconds: 150 },
-    });
+    await page.addInitScript(
+      (storedConfig) => {
+        window.localStorage.setItem(
+          "deckOfGains:configuration",
+          JSON.stringify(storedConfig),
+        );
+      },
+      {
+        multipliers: { hearts: 1, spades: 1, diamonds: 1, clubs: 1 },
+        theme: "rugged",
+        endless: false,
+        autoDraw: { enabled: false, intervalSeconds: 150 },
+      },
+    );
 
     const url = new URL(baseUrl);
     url.searchParams.set("theme", "casino");
@@ -1678,7 +1685,9 @@ test.describe("Deck of Gains app", () => {
       const workoutGridRect = document
         .getElementById("workout-grid")
         ?.getBoundingClientRect();
-      const cardRects = Array.from(document.querySelectorAll("#drawn-cards .card"))
+      const cardRects = Array.from(
+        document.querySelectorAll("#drawn-cards .card"),
+      )
         .slice(0, 4)
         .map((card) => card.getBoundingClientRect());
       const summaryRects = Array.from(
@@ -1710,10 +1719,12 @@ test.describe("Deck of Gains app", () => {
         firstSummaryWidth: summaryRects[0]?.width ?? 0,
         firstSummaryHeight: summaryRects[0]?.height ?? 0,
         cardFontSize: Number.parseFloat(
-          getComputedStyle(document.querySelector("#drawn-cards .card")).fontSize,
+          getComputedStyle(document.querySelector("#drawn-cards .card"))
+            .fontSize,
         ),
         countFontSize: Number.parseFloat(
-          getComputedStyle(document.querySelector(".rep-summary-count")).fontSize,
+          getComputedStyle(document.querySelector(".rep-summary-count"))
+            .fontSize,
         ),
         countHeight: countRect?.height ?? 0,
         countBottom: countRect?.bottom ?? 0,
@@ -1725,19 +1736,25 @@ test.describe("Deck of Gains app", () => {
     expect(layout.workoutGridRight).toBeGreaterThanOrEqual(
       layout.secondSummaryLeft,
     );
-    expect(layout.firstSummaryLeft - layout.secondCardRight).toBeGreaterThan(20);
+    expect(layout.firstSummaryLeft - layout.secondCardRight).toBeGreaterThan(
+      20,
+    );
     expect(layout.thirdCardTop).toBeGreaterThan(layout.firstCardTop);
     expect(layout.secondCardLeft).toBeGreaterThan(layout.firstCardLeft);
-    expect(Math.abs(layout.firstSummaryTop - layout.firstCardTop)).toBeLessThan(8);
+    expect(Math.abs(layout.firstSummaryTop - layout.firstCardTop)).toBeLessThan(
+      8,
+    );
     expect(layout.thirdSummaryTop).toBeGreaterThan(layout.firstSummaryTop);
     expect(layout.secondSummaryLeft).toBeGreaterThan(layout.firstSummaryLeft);
     expect(layout.countHeight).toBeGreaterThan(40);
     expect(layout.exerciseTop).toBeGreaterThan(layout.countBottom);
-    expect(layout.firstCardWidth / layout.firstCardHeight).toBeGreaterThan(0.75);
-    expect(layout.firstCardWidth / layout.firstCardHeight).toBeLessThan(1.25);
-    expect(layout.firstSummaryWidth / layout.firstSummaryHeight).toBeGreaterThan(
+    expect(layout.firstCardWidth / layout.firstCardHeight).toBeGreaterThan(
       0.75,
     );
+    expect(layout.firstCardWidth / layout.firstCardHeight).toBeLessThan(1.25);
+    expect(
+      layout.firstSummaryWidth / layout.firstSummaryHeight,
+    ).toBeGreaterThan(0.75);
     expect(layout.firstSummaryWidth / layout.firstSummaryHeight).toBeLessThan(
       1.25,
     );

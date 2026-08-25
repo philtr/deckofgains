@@ -1,6 +1,6 @@
-import { normalizeConfiguration } from './configuration.js';
+import { normalizeConfiguration } from "./configuration.js";
 
-const STORAGE_KEY = 'deckOfGains:configuration';
+const STORAGE_KEY = "deckOfGains:configuration";
 
 export function loadStoredConfiguration() {
   if (!window.localStorage) {

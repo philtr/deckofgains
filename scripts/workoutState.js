@@ -1,9 +1,9 @@
 import {
   defaultMultipliers,
   defaultTheme,
-  defaultAutoDrawIntervalSeconds
-} from './constants.js';
-import { mergeConfiguration, normalizeConfiguration } from './configuration.js';
+  defaultAutoDrawIntervalSeconds,
+} from "./constants.js";
+import { mergeConfiguration, normalizeConfiguration } from "./configuration.js";
 
 const state = {
   configuration: {
@@ -12,14 +12,14 @@ const state = {
     endless: false,
     autoDraw: {
       enabled: false,
-      intervalSeconds: defaultAutoDrawIntervalSeconds
-    }
+      intervalSeconds: defaultAutoDrawIntervalSeconds,
+    },
   },
   deck: [],
   roundNumber: 1,
   roundCompleted: false,
   started: false,
-  lastDrawn: []
+  lastDrawn: [],
 };
 
 const listeners = new Set();
@@ -41,14 +41,14 @@ function notify() {
   }
 
   const snapshot = getState();
-  listeners.forEach(listener => listener(snapshot));
+  listeners.forEach((listener) => listener(snapshot));
 }
 
 function flushPendingNotification() {
   if (pendingNotification && suppressionDepth === 0) {
     pendingNotification = false;
     const snapshot = getState();
-    listeners.forEach(listener => listener(snapshot));
+    listeners.forEach((listener) => listener(snapshot));
   }
 }
 
@@ -73,13 +73,13 @@ export function getState() {
       multipliers: { ...state.configuration.multipliers },
       theme: state.configuration.theme,
       endless: state.configuration.endless,
-      autoDraw: { ...state.configuration.autoDraw }
+      autoDraw: { ...state.configuration.autoDraw },
     },
     deck: cloneDeck(state.deck),
     roundNumber: state.roundNumber,
     roundCompleted: state.roundCompleted,
     started: state.started,
-    lastDrawn: cloneDeck(state.lastDrawn)
+    lastDrawn: cloneDeck(state.lastDrawn),
   };
 }
 
@@ -116,7 +116,10 @@ export function setLastDrawn(cards) {
 
 export function replaceState(snapshot, { silent = false } = {}) {
   const apply = () => {
-    state.configuration = normalizeConfiguration(snapshot?.configuration, state.configuration);
+    state.configuration = normalizeConfiguration(
+      snapshot?.configuration,
+      state.configuration,
+    );
     state.deck = cloneDeck(snapshot?.deck);
     const round = Number.parseInt(snapshot?.roundNumber, 10);
     state.roundNumber = Number.isFinite(round) && round > 0 ? round : 1;
@@ -150,10 +153,10 @@ export function bindStateToWindow(target = window) {
         return state.configuration;
       },
       set(value) {
-        if (value && typeof value === 'object') {
+        if (value && typeof value === "object") {
           updateConfiguration(value);
         }
-      }
+      },
     },
     deck: {
       ...descriptorOptions,
@@ -162,7 +165,7 @@ export function bindStateToWindow(target = window) {
       },
       set(value) {
         setDeck(value);
-      }
+      },
     },
     roundNumber: {
       ...descriptorOptions,
@@ -171,7 +174,7 @@ export function bindStateToWindow(target = window) {
       },
       set(value) {
         setRoundNumber(value);
-      }
+      },
     },
     roundCompleted: {
       ...descriptorOptions,
@@ -180,7 +183,7 @@ export function bindStateToWindow(target = window) {
       },
       set(value) {
         setRoundCompleted(value);
-      }
+      },
     },
     lastDrawn: {
       ...descriptorOptions,
@@ -189,7 +192,7 @@ export function bindStateToWindow(target = window) {
       },
       set(value) {
         setLastDrawn(value);
-      }
-    }
+      },
+    },
   });
 }

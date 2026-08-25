@@ -2,13 +2,13 @@ import {
   defaultAutoDrawIntervalSeconds,
   defaultMultipliers,
   defaultTheme,
-  suits
-} from './constants.js';
-import { resolveTheme } from './theme.js';
+  suits,
+} from "./constants.js";
+import { resolveTheme } from "./theme.js";
 
 const DEFAULT_AUTO_DRAW = Object.freeze({
   enabled: false,
-  intervalSeconds: defaultAutoDrawIntervalSeconds
+  intervalSeconds: defaultAutoDrawIntervalSeconds,
 });
 
 function coerceIntervalSeconds(value, { isMinutes = false } = {}) {
@@ -25,7 +25,10 @@ function coerceIntervalSeconds(value, { isMinutes = false } = {}) {
   return Math.round(seconds);
 }
 
-export function normalizeMultipliers(candidate = {}, fallback = defaultMultipliers) {
+export function normalizeMultipliers(
+  candidate = {},
+  fallback = defaultMultipliers,
+) {
   return suits.reduce((acc, suit) => {
     const value = Number.parseInt(candidate[suit], 10);
     const fallbackValue = Number.parseInt(fallback?.[suit], 10);
@@ -38,46 +41,62 @@ export function normalizeMultipliers(candidate = {}, fallback = defaultMultiplie
   }, {});
 }
 
-export function normalizeAutoDraw(candidate = {}, fallback = DEFAULT_AUTO_DRAW) {
-  const enabled = candidate?.enabled !== undefined
-    ? Boolean(candidate.enabled)
-    : Boolean(fallback?.enabled);
-  const intervalSeconds = [
-    coerceIntervalSeconds(candidate?.intervalSeconds),
-    coerceIntervalSeconds(candidate?.intervalMinutes, { isMinutes: true }),
-    coerceIntervalSeconds(fallback?.intervalSeconds),
-    coerceIntervalSeconds(fallback?.intervalMinutes, { isMinutes: true })
-  ].find(value => typeof value === 'number' && Number.isFinite(value) && value > 0)
-    ?? defaultAutoDrawIntervalSeconds;
+export function normalizeAutoDraw(
+  candidate = {},
+  fallback = DEFAULT_AUTO_DRAW,
+) {
+  const enabled =
+    candidate?.enabled !== undefined
+      ? Boolean(candidate.enabled)
+      : Boolean(fallback?.enabled);
+  const intervalSeconds =
+    [
+      coerceIntervalSeconds(candidate?.intervalSeconds),
+      coerceIntervalSeconds(candidate?.intervalMinutes, { isMinutes: true }),
+      coerceIntervalSeconds(fallback?.intervalSeconds),
+      coerceIntervalSeconds(fallback?.intervalMinutes, { isMinutes: true }),
+    ].find(
+      (value) =>
+        typeof value === "number" && Number.isFinite(value) && value > 0,
+    ) ?? defaultAutoDrawIntervalSeconds;
 
   return {
     enabled,
-    intervalSeconds
+    intervalSeconds,
   };
 }
 
 export function normalizeConfiguration(candidate = {}, fallback = {}) {
   return {
-    multipliers: normalizeMultipliers(candidate?.multipliers, fallback?.multipliers),
+    multipliers: normalizeMultipliers(
+      candidate?.multipliers,
+      fallback?.multipliers,
+    ),
     theme: resolveTheme(candidate?.theme ?? fallback?.theme ?? defaultTheme),
-    endless: candidate?.endless !== undefined ? Boolean(candidate.endless) : Boolean(fallback?.endless),
-    autoDraw: normalizeAutoDraw(candidate?.autoDraw, fallback?.autoDraw)
+    endless:
+      candidate?.endless !== undefined
+        ? Boolean(candidate.endless)
+        : Boolean(fallback?.endless),
+    autoDraw: normalizeAutoDraw(candidate?.autoDraw, fallback?.autoDraw),
   };
 }
 
 export function mergeConfiguration(base = {}, partial = {}) {
-  return normalizeConfiguration({
-    ...base,
-    ...partial,
-    multipliers: {
-      ...(base?.multipliers ?? {}),
-      ...(partial?.multipliers ?? {})
+  return normalizeConfiguration(
+    {
+      ...base,
+      ...partial,
+      multipliers: {
+        ...(base?.multipliers ?? {}),
+        ...(partial?.multipliers ?? {}),
+      },
+      autoDraw: {
+        ...(base?.autoDraw ?? {}),
+        ...(partial?.autoDraw ?? {}),
+      },
     },
-    autoDraw: {
-      ...(base?.autoDraw ?? {}),
-      ...(partial?.autoDraw ?? {})
-    }
-  }, base);
+    base,
+  );
 }
 
 export function serializeConfiguration(configuration) {

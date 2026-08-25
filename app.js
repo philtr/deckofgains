@@ -4,9 +4,9 @@ import {
   drawCards,
   doDrawCards,
   initializeDeck,
-  updateRoundTitle
-} from './scripts/appController.js';
-import { getCardDisplayValue, getCardValue } from './scripts/deck.js';
+  updateRoundTitle,
+} from "./scripts/appController.js";
+import { getCardDisplayValue, getCardValue } from "./scripts/deck.js";
 
 window.initializeApp = initializeApp;
 window.startWorkout = startWorkout;
@@ -21,8 +21,8 @@ function boot() {
   initializeApp();
 }
 
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', boot, { once: true });
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", boot, { once: true });
 } else {
   boot();
 }

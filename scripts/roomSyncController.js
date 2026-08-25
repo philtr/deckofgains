@@ -3,7 +3,7 @@ function serializeSyncState(state) {
 }
 
 function normalizeRoomCodeInput(value) {
-  if (typeof value !== 'string') {
+  if (typeof value !== "string") {
     return null;
   }
   const trimmed = value.trim();
@@ -13,7 +13,7 @@ function normalizeRoomCodeInput(value) {
 export function createRoomSyncController({
   resolveRoomCode,
   setInitialSerialized,
-  createRoomSync
+  createRoomSync,
 }) {
   let syncSession = null;
   let syncRoomCode = null;
@@ -27,49 +27,49 @@ export function createRoomSyncController({
   }
 
   function updateRoomControls(roomCode) {
-    const controls = document.querySelector('.group-join-controls');
-    const active = document.getElementById('room-active');
-    const activeName = document.getElementById('room-active-name');
+    const controls = document.querySelector(".group-join-controls");
+    const active = document.getElementById("room-active");
+    const activeName = document.getElementById("room-active-name");
     const hasRoom = Boolean(roomCode);
 
     if (controls) {
-      controls.style.display = hasRoom ? 'none' : 'flex';
+      controls.style.display = hasRoom ? "none" : "flex";
     }
     if (active) {
-      active.style.display = hasRoom ? 'flex' : 'none';
+      active.style.display = hasRoom ? "flex" : "none";
     }
     if (activeName) {
-      activeName.textContent = roomCode ?? '';
+      activeName.textContent = roomCode ?? "";
     }
   }
 
   function updateRoomParam(roomCode) {
     const params = new URLSearchParams(window.location.search);
     if (roomCode) {
-      params.set('room', roomCode);
+      params.set("room", roomCode);
     } else {
-      params.delete('room');
+      params.delete("room");
     }
     const search = params.toString();
-    const url = `${window.location.pathname}${search ? `?${search}` : ''}`;
-    history.replaceState(null, '', url);
+    const url = `${window.location.pathname}${search ? `?${search}` : ""}`;
+    history.replaceState(null, "", url);
     setInitialSerialized(params.toString());
     updateRoomControls(roomCode);
   }
 
   function getRoomInputValue() {
-    const roomInput = document.getElementById('room-code');
+    const roomInput = document.getElementById("room-code");
     const roomCode = normalizeRoomCodeInput(roomInput?.value);
     if (roomInput) {
-      roomInput.value = roomCode ?? '';
+      roomInput.value = roomCode ?? "";
     }
     return roomCode;
   }
 
   function setControlsEnabled(enabled) {
-    const groupJoin = document.getElementById('group-join');
+    const groupJoin = document.getElementById("group-join");
     if (groupJoin) {
-      groupJoin.style.display = enabled ? '' : 'none';
+      groupJoin.style.display = enabled ? "" : "none";
     }
     if (enabled) {
       updateRoomControls(resolveRoomCodeFromLocation());
@@ -151,7 +151,7 @@ export function createRoomSyncController({
     syncRoomCode = roomCode;
     syncSession = createRoomSync({
       roomCode,
-      onRemoteState
+      onRemoteState,
     });
 
     const remoteState = await syncSession.fetchState();
@@ -192,6 +192,6 @@ export function createRoomSyncController({
     suppressOutbound,
     syncToRoom,
     updateRoomControls,
-    updateRoomParam
+    updateRoomParam,
   };
 }

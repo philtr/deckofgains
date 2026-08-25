@@ -1,12 +1,12 @@
-import { Socket } from './vendor/phoenix.mjs';
+import { Socket } from "./vendor/phoenix.mjs";
 
-function buildRoomUrl(roomCode, suffix = '') {
+function buildRoomUrl(roomCode, suffix = "") {
   const encodedRoom = encodeURIComponent(roomCode);
   return `${resolveSyncBaseUrl()}/api/rooms/${encodedRoom}${suffix}`;
 }
 
 function isUsableState(state) {
-  return state && typeof state === 'object' && !Array.isArray(state);
+  return state && typeof state === "object" && !Array.isArray(state);
 }
 
 export function createRoomSync({ roomCode, onRemoteState }) {
@@ -57,7 +57,7 @@ export function createRoomSync({ roomCode, onRemoteState }) {
     socket.connect();
 
     channel = socket.channel(`room:${roomCode}`);
-    channel.on('state', record => {
+    channel.on("state", (record) => {
       if (closed) {
         return;
       }
@@ -69,7 +69,7 @@ export function createRoomSync({ roomCode, onRemoteState }) {
 
     channel
       .join()
-      .receive('ok', record => {
+      .receive("ok", (record) => {
         if (closed) {
           return;
         }
@@ -77,7 +77,7 @@ export function createRoomSync({ roomCode, onRemoteState }) {
           onRemoteState(record.state);
         }
       })
-      .receive('error', () => {
+      .receive("error", () => {
         // Ignore join failures; the next update can retry.
       });
   }
@@ -94,7 +94,7 @@ export function createRoomSync({ roomCode, onRemoteState }) {
       if (!channel) {
         return;
       }
-      channel.push('state:update', { state });
+      channel.push("state:update", { state });
     } catch (error) {
       // Skip failed sync; next local update will retry.
     }
@@ -104,53 +104,53 @@ export function createRoomSync({ roomCode, onRemoteState }) {
     fetchState,
     startStream,
     sendState,
-    stop
+    stop,
   };
 }
 
 function buildSocketUrl() {
   const baseUrl = resolveSyncBaseUrl();
-  if (baseUrl.startsWith('https://')) {
-    return baseUrl.replace('https://', 'wss://') + '/socket';
+  if (baseUrl.startsWith("https://")) {
+    return baseUrl.replace("https://", "wss://") + "/socket";
   }
-  if (baseUrl.startsWith('http://')) {
-    return baseUrl.replace('http://', 'ws://') + '/socket';
+  if (baseUrl.startsWith("http://")) {
+    return baseUrl.replace("http://", "ws://") + "/socket";
   }
   return `${baseUrl}/socket`;
 }
 
 function resolveSocketConstructor() {
-  if (typeof globalThis !== 'undefined' && globalThis.__deckOfGainsSocket) {
+  if (typeof globalThis !== "undefined" && globalThis.__deckOfGainsSocket) {
     return globalThis.__deckOfGainsSocket;
   }
   return Socket;
 }
 
 function resolveSyncBaseUrl() {
-  if (typeof window === 'undefined') {
-    return 'https://sync.deck.fitness';
+  if (typeof window === "undefined") {
+    return "https://sync.deck.fitness";
   }
 
   const params = new URLSearchParams(window.location.search);
-  const override = params.get('sync');
+  const override = params.get("sync");
   if (override) {
     return normalizeSyncBaseUrl(override);
   }
 
   const hostname = window.location.hostname;
-  if (hostname === 'localhost' || hostname === '127.0.0.1') {
-    return 'http://localhost:4000';
+  if (hostname === "localhost" || hostname === "127.0.0.1") {
+    return "http://localhost:4000";
   }
 
-  return 'https://sync.deck.fitness';
+  return "https://sync.deck.fitness";
 }
 
 function normalizeSyncBaseUrl(candidate) {
-  if (typeof candidate !== 'string') {
-    return 'https://sync.deck.fitness';
+  if (typeof candidate !== "string") {
+    return "https://sync.deck.fitness";
   }
-  const trimmed = candidate.trim().replace(/\/+$/, '');
-  return trimmed || 'https://sync.deck.fitness';
+  const trimmed = candidate.trim().replace(/\/+$/, "");
+  return trimmed || "https://sync.deck.fitness";
 }
 
 export async function checkSyncHealth() {

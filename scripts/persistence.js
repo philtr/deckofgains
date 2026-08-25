@@ -3,19 +3,19 @@ import {
   defaultMultipliers,
   suitCodes,
   suitLookupByCode,
-  defaultAutoDrawIntervalSeconds
-} from './constants.js';
-import { normalizeConfiguration } from './configuration.js';
+  defaultAutoDrawIntervalSeconds,
+} from "./constants.js";
+import { normalizeConfiguration } from "./configuration.js";
 
-const CARD_SEPARATOR = '.';
-const MULTIPLIER_SEPARATOR = '.';
-const MULTIPLIER_PAIR_SEPARATOR = '-';
-const ROOM_PARAM = 'room';
+const CARD_SEPARATOR = ".";
+const MULTIPLIER_SEPARATOR = ".";
+const MULTIPLIER_PAIR_SEPARATOR = "-";
+const ROOM_PARAM = "room";
 
 let lastSerialized = null;
 
 function normalizeRoomCode(value) {
-  if (typeof value !== 'string') {
+  if (typeof value !== "string") {
     return null;
   }
   const trimmed = value.trim();
@@ -23,9 +23,10 @@ function normalizeRoomCode(value) {
 }
 
 export function resolveRoomCode(params) {
-  const searchParams = params instanceof URLSearchParams
-    ? params
-    : new URLSearchParams(params ?? '');
+  const searchParams =
+    params instanceof URLSearchParams
+      ? params
+      : new URLSearchParams(params ?? "");
   return normalizeRoomCode(searchParams.get(ROOM_PARAM));
 }
 
@@ -44,7 +45,7 @@ function formatMinutesFromSeconds(seconds) {
 }
 
 function resolveIntervalSecondsFromParams(params) {
-  const secondsParam = params.get('autoIntervalSeconds');
+  const secondsParam = params.get("autoIntervalSeconds");
   if (secondsParam !== null) {
     const parsedSeconds = Number.parseInt(secondsParam, 10);
     if (Number.isFinite(parsedSeconds) && parsedSeconds > 0) {
@@ -52,7 +53,7 @@ function resolveIntervalSecondsFromParams(params) {
     }
   }
 
-  const legacyParam = params.get('autoInterval');
+  const legacyParam = params.get("autoInterval");
   if (legacyParam !== null) {
     const numeric = Number.parseFloat(legacyParam);
     if (Number.isFinite(numeric) && numeric > 0) {
@@ -64,7 +65,7 @@ function resolveIntervalSecondsFromParams(params) {
 }
 
 function resolveRemainingSecondsFromParams(params) {
-  const remainingParam = params.get('autoRemainingSeconds');
+  const remainingParam = params.get("autoRemainingSeconds");
   if (remainingParam === null) {
     return null;
   }
@@ -106,7 +107,7 @@ function decodeCard(token) {
   if (!token) {
     return null;
   }
-  const [rawSuit, rawNumber] = token.split('-');
+  const [rawSuit, rawNumber] = token.split("-");
   const number = Number.parseInt(rawNumber, 10);
   const suit = decodeSuit(rawSuit);
   if (!suit || !Number.isFinite(number)) {
@@ -120,30 +121,24 @@ function decodeCard(token) {
 
 function encodeCardList(cards) {
   if (!cards || cards.length === 0) {
-    return '';
+    return "";
   }
-  return cards
-    .map(encodeCard)
-    .filter(Boolean)
-    .join(CARD_SEPARATOR);
+  return cards.map(encodeCard).filter(Boolean).join(CARD_SEPARATOR);
 }
 
 function decodeCardList(serialized) {
   if (serialized == null) {
     return [];
   }
-  if (serialized === '') {
+  if (serialized === "") {
     return [];
   }
-  return serialized
-    .split(CARD_SEPARATOR)
-    .map(decodeCard)
-    .filter(Boolean);
+  return serialized.split(CARD_SEPARATOR).map(decodeCard).filter(Boolean);
 }
 
 function encodeMultipliers(multipliers = {}) {
   return suits
-    .map(suit => {
+    .map((suit) => {
       const value = Number.parseInt(multipliers[suit], 10);
       const fallback = defaultMultipliers[suit];
       const numeric = Number.isFinite(value) ? value : fallback;
@@ -171,7 +166,10 @@ function decodeMultipliers(serialized) {
   }, {});
 }
 
-export function serializeState(state, { autoDrawRemainingSeconds, roomCode } = {}) {
+export function serializeState(
+  state,
+  { autoDrawRemainingSeconds, roomCode } = {},
+) {
   const configuration = normalizeConfiguration(state?.configuration);
   const params = new URLSearchParams();
   const resolvedRoom = normalizeRoomCode(roomCode);
@@ -180,14 +178,14 @@ export function serializeState(state, { autoDrawRemainingSeconds, roomCode } = {
   }
   const theme = configuration.theme;
   if (theme) {
-    params.set('theme', theme);
+    params.set("theme", theme);
   }
   if (configuration.endless) {
-    params.set('endless', '1');
+    params.set("endless", "1");
   }
 
   if (configuration.autoDraw.enabled) {
-    params.set('auto', '1');
+    params.set("auto", "1");
   }
 
   const remainingSeconds = Number.parseInt(autoDrawRemainingSeconds, 10);
@@ -197,54 +195,61 @@ export function serializeState(state, { autoDrawRemainingSeconds, roomCode } = {
     Number.isFinite(remainingSeconds) &&
     remainingSeconds > 0
   ) {
-    params.set('autoRemainingSeconds', String(remainingSeconds));
+    params.set("autoRemainingSeconds", String(remainingSeconds));
   }
 
-  const autoIntervalSeconds = Number.parseInt(configuration.autoDraw.intervalSeconds, 10);
+  const autoIntervalSeconds = Number.parseInt(
+    configuration.autoDraw.intervalSeconds,
+    10,
+  );
   if (Number.isFinite(autoIntervalSeconds) && autoIntervalSeconds > 0) {
-    params.set('autoIntervalSeconds', String(autoIntervalSeconds));
+    params.set("autoIntervalSeconds", String(autoIntervalSeconds));
     const minutesValue = formatMinutesFromSeconds(autoIntervalSeconds);
     if (minutesValue) {
-      params.set('autoInterval', minutesValue);
+      params.set("autoInterval", minutesValue);
     }
   }
 
-  const multipliers = encodeMultipliers(configuration.multipliers ?? defaultMultipliers);
-  params.set('multipliers', multipliers);
+  const multipliers = encodeMultipliers(
+    configuration.multipliers ?? defaultMultipliers,
+  );
+  params.set("multipliers", multipliers);
 
   if (state?.started) {
-    params.set('started', '1');
-    params.set('round', String(state.roundNumber ?? 1));
-    params.set('completed', state.roundCompleted ? '1' : '0');
-    params.set('deck', encodeCardList(state.deck));
-    params.set('draw', encodeCardList(state.lastDrawn));
+    params.set("started", "1");
+    params.set("round", String(state.roundNumber ?? 1));
+    params.set("completed", state.roundCompleted ? "1" : "0");
+    params.set("deck", encodeCardList(state.deck));
+    params.set("draw", encodeCardList(state.lastDrawn));
   }
 
   return params;
 }
 
 export function deserializeState(searchParams) {
-  const params = searchParams instanceof URLSearchParams
-    ? searchParams
-    : new URLSearchParams(searchParams ?? '');
+  const params =
+    searchParams instanceof URLSearchParams
+      ? searchParams
+      : new URLSearchParams(searchParams ?? "");
 
   const autoDrawRemainingSeconds = resolveRemainingSecondsFromParams(params);
   const configuration = normalizeConfiguration({
-    theme: params.get('theme'),
-    endless: params.get('endless') === '1',
-    multipliers: decodeMultipliers(params.get('multipliers')) ?? defaultMultipliers,
+    theme: params.get("theme"),
+    endless: params.get("endless") === "1",
+    multipliers:
+      decodeMultipliers(params.get("multipliers")) ?? defaultMultipliers,
     autoDraw: {
-      enabled: params.get('auto') === '1',
-      intervalSeconds: resolveIntervalSecondsFromParams(params)
-    }
+      enabled: params.get("auto") === "1",
+      intervalSeconds: resolveIntervalSecondsFromParams(params),
+    },
   });
 
-  const started = params.get('started') === '1';
-  const round = Number.parseInt(params.get('round'), 10);
+  const started = params.get("started") === "1";
+  const round = Number.parseInt(params.get("round"), 10);
   const roundNumber = Number.isFinite(round) && round > 0 ? round : 1;
-  const roundCompleted = params.get('completed') === '1';
-  const deck = decodeCardList(params.get('deck'));
-  const lastDrawn = decodeCardList(params.get('draw'));
+  const roundCompleted = params.get("completed") === "1";
+  const deck = decodeCardList(params.get("deck"));
+  const lastDrawn = decodeCardList(params.get("draw"));
 
   return {
     configuration,
@@ -253,33 +258,35 @@ export function deserializeState(searchParams) {
     roundCompleted,
     deck,
     lastDrawn,
-    autoDrawRemainingSeconds
+    autoDrawRemainingSeconds,
   };
 }
 
 export function persistState(state) {
-  const params = serializeState(state, { roomCode: resolveRoomCodeFromLocation() });
+  const params = serializeState(state, {
+    roomCode: resolveRoomCodeFromLocation(),
+  });
   const search = params.toString();
   if (search === lastSerialized && search === window.location.search.slice(1)) {
     return;
   }
 
-  const url = `${window.location.pathname}${search ? `?${search}` : ''}`;
-  history.pushState(null, '', url);
+  const url = `${window.location.pathname}${search ? `?${search}` : ""}`;
+  history.pushState(null, "", url);
   lastSerialized = search;
 }
 
 export function replaceStateWithAutoDrawRemaining(state, remainingSeconds) {
   const params = serializeState(state, {
     autoDrawRemainingSeconds: remainingSeconds,
-    roomCode: resolveRoomCodeFromLocation()
+    roomCode: resolveRoomCodeFromLocation(),
   });
   const search = params.toString();
   if (search === window.location.search.slice(1)) {
     return;
   }
-  const url = `${window.location.pathname}${search ? `?${search}` : ''}`;
-  history.replaceState(null, '', url);
+  const url = `${window.location.pathname}${search ? `?${search}` : ""}`;
+  history.replaceState(null, "", url);
   lastSerialized = search;
 }
 
@@ -288,8 +295,10 @@ export function setInitialSerialized(value) {
 }
 
 export function subscribeToPopState(callback) {
-  window.addEventListener('popstate', () => {
-    const restored = deserializeState(new URLSearchParams(window.location.search));
+  window.addEventListener("popstate", () => {
+    const restored = deserializeState(
+      new URLSearchParams(window.location.search),
+    );
     callback(restored);
   });
 }

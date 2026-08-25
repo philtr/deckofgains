@@ -2,10 +2,10 @@ import {
   suits,
   defaultMultipliers,
   totalRounds,
-  defaultAutoDrawIntervalSeconds
-} from './constants.js';
-import { applyTheme, deriveInitialTheme } from './theme.js';
-import { buildDeck, calculateTotals, createCardElement } from './deck.js';
+  defaultAutoDrawIntervalSeconds,
+} from "./constants.js";
+import { applyTheme, deriveInitialTheme } from "./theme.js";
+import { buildDeck, calculateTotals, createCardElement } from "./deck.js";
 import {
   bindStateToWindow,
   getState,
@@ -17,8 +17,8 @@ import {
   setStarted,
   subscribe,
   suppressNotifications,
-  updateConfiguration
-} from './workoutState.js';
+  updateConfiguration,
+} from "./workoutState.js";
 import {
   deserializeState,
   persistState,
@@ -26,27 +26,30 @@ import {
   serializeState,
   resolveRoomCode,
   setInitialSerialized,
-  subscribeToPopState
-} from './persistence.js';
-import { loadStoredConfiguration, storeConfiguration } from './configStorage.js';
+  subscribeToPopState,
+} from "./persistence.js";
+import {
+  loadStoredConfiguration,
+  storeConfiguration,
+} from "./configStorage.js";
 import {
   normalizeConfiguration,
-  serializeConfiguration
-} from './configuration.js';
-import { createAutoDrawController } from './autoDrawController.js';
-import { createRoomSyncController } from './roomSyncController.js';
+  serializeConfiguration,
+} from "./configuration.js";
+import { createAutoDrawController } from "./autoDrawController.js";
+import { createRoomSyncController } from "./roomSyncController.js";
 import {
   populateConfigurationForm as renderConfigurationForm,
   readAutoDrawIntervalFromInputs,
   renderWorkoutFromState as renderWorkoutView,
   showConfigurationScreen,
   updateAutoDrawIntervalVisibility,
-  updateRoundTitle as renderRoundTitle
-} from './workoutView.js';
-import { playDrawSound } from './audio.js';
-import { checkSyncHealth, createRoomSync } from './syncClient.js';
+  updateRoundTitle as renderRoundTitle,
+} from "./workoutView.js";
+import { playDrawSound } from "./audio.js";
+import { checkSyncHealth, createRoomSync } from "./syncClient.js";
 
-const DRAW_BUTTON_DEFAULT_LABEL = 'Draw Cards';
+const DRAW_BUTTON_DEFAULT_LABEL = "Draw Cards";
 const AUTO_DRAW_REMAINING_UPDATE_MS = 1000;
 
 let configurationListenersInitialized = false;
@@ -57,18 +60,18 @@ const autoDrawController = createAutoDrawController({
   onAutoDraw: () => {
     drawCards();
   },
-  persistRemainingSeconds: remainingSeconds => {
+  persistRemainingSeconds: (remainingSeconds) => {
     replaceStateWithAutoDrawRemaining(getState(), remainingSeconds);
   },
   defaultIntervalSeconds: defaultAutoDrawIntervalSeconds,
   drawButtonDefaultLabel: DRAW_BUTTON_DEFAULT_LABEL,
-  autoDrawRemainingUpdateMs: AUTO_DRAW_REMAINING_UPDATE_MS
+  autoDrawRemainingUpdateMs: AUTO_DRAW_REMAINING_UPDATE_MS,
 });
 
 const roomSyncController = createRoomSyncController({
   resolveRoomCode,
   setInitialSerialized,
-  createRoomSync
+  createRoomSync,
 });
 
 function hasConfigurationParams(params) {
@@ -77,15 +80,15 @@ function hasConfigurationParams(params) {
   }
 
   return [
-    'theme',
-    'rugged',
-    'endless',
-    'multipliers',
-    'auto',
-    'autoIntervalSeconds',
-    'autoInterval',
-    'autoRemainingSeconds'
-  ].some(param => params.has(param));
+    "theme",
+    "rugged",
+    "endless",
+    "multipliers",
+    "auto",
+    "autoIntervalSeconds",
+    "autoInterval",
+    "autoRemainingSeconds",
+  ].some((param) => params.has(param));
 }
 
 function resolveRoomCodeFromLocation() {
@@ -102,7 +105,10 @@ function requestRoomJoin() {
 }
 
 async function syncToRoom(roomCode) {
-  const remoteState = await roomSyncController.syncToRoom(roomCode, applyRemoteState);
+  const remoteState = await roomSyncController.syncToRoom(
+    roomCode,
+    applyRemoteState,
+  );
   if (remoteState) {
     applyRemoteState(remoteState);
   }
@@ -120,7 +126,7 @@ function persistConfigurationIfChanged(configuration) {
 }
 
 function applyRemoteState(remoteState) {
-  if (!remoteState || typeof remoteState !== 'object') {
+  if (!remoteState || typeof remoteState !== "object") {
     return;
   }
 
@@ -145,16 +151,22 @@ function sendStateToSync(state) {
   roomSyncController.sendState(state);
 }
 
-function resolveConfigurationFromSources({ params, sourceConfiguration, derivedTheme }) {
+function resolveConfigurationFromSources({
+  params,
+  sourceConfiguration,
+  derivedTheme,
+}) {
   const storedConfiguration = loadStoredConfiguration();
   const useStored = storedConfiguration && !hasConfigurationParams(params);
-  const baseConfiguration = useStored ? storedConfiguration : sourceConfiguration;
+  const baseConfiguration = useStored
+    ? storedConfiguration
+    : sourceConfiguration;
 
   return {
     configuration: normalizeConfiguration({
       ...baseConfiguration,
-      theme: baseConfiguration?.theme ?? derivedTheme
-    })
+      theme: baseConfiguration?.theme ?? derivedTheme,
+    }),
   };
 }
 
@@ -164,7 +176,7 @@ function populateConfigurationForm(state) {
     defaultAutoDrawIntervalSeconds,
     defaultMultipliers,
     roomCode: resolveRoomCodeFromLocation(),
-    suits
+    suits,
   });
 }
 
@@ -173,23 +185,23 @@ function ensureConfigurationListeners() {
     return;
   }
 
-  const joinRoomButton = document.getElementById('join-room');
+  const joinRoomButton = document.getElementById("join-room");
   if (joinRoomButton) {
-    joinRoomButton.addEventListener('click', () => {
+    joinRoomButton.addEventListener("click", () => {
       requestRoomJoin();
     });
   }
 
-  const changeRoomButton = document.getElementById('change-room');
+  const changeRoomButton = document.getElementById("change-room");
   if (changeRoomButton) {
-    changeRoomButton.addEventListener('click', () => {
+    changeRoomButton.addEventListener("click", () => {
       if (!roomSyncController.isEnabled()) {
         return;
       }
-      const roomInput = document.getElementById('room-code');
+      const roomInput = document.getElementById("room-code");
       const currentRoom = resolveRoomCodeFromLocation();
       if (roomInput) {
-        roomInput.value = currentRoom ?? '';
+        roomInput.value = currentRoom ?? "";
       }
       roomSyncController.updateRoomParam(null);
       roomSyncController.stopSession();
@@ -200,77 +212,77 @@ function ensureConfigurationListeners() {
     });
   }
 
-  const roomInput = document.getElementById('room-code');
+  const roomInput = document.getElementById("room-code");
   if (roomInput) {
-    roomInput.addEventListener('keydown', event => {
-      if (event.key === 'Enter') {
+    roomInput.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
         event.preventDefault();
         requestRoomJoin();
       }
     });
   }
 
-  suits.forEach(suit => {
+  suits.forEach((suit) => {
     const select = document.getElementById(`multiplier-${suit}`);
     if (select) {
-      select.addEventListener('change', event => {
+      select.addEventListener("change", (event) => {
         const value = Number.parseInt(event.target.value, 10);
         updateConfiguration({
           multipliers: {
-            [suit]: Number.isFinite(value) ? value : defaultMultipliers[suit]
-          }
+            [suit]: Number.isFinite(value) ? value : defaultMultipliers[suit],
+          },
         });
       });
     }
   });
 
   const themeInputs = document.querySelectorAll('input[name="theme"]');
-  themeInputs.forEach(input => {
-    input.addEventListener('change', event => {
+  themeInputs.forEach((input) => {
+    input.addEventListener("change", (event) => {
       const selected = event.target.value;
       const theme = applyTheme(selected);
       updateConfiguration({ theme });
     });
   });
 
-  const endlessToggle = document.getElementById('endless-mode');
+  const endlessToggle = document.getElementById("endless-mode");
   if (endlessToggle) {
-    endlessToggle.addEventListener('change', event => {
+    endlessToggle.addEventListener("change", (event) => {
       updateConfiguration({ endless: event.target.checked });
     });
   }
 
-  const autoDrawToggle = document.getElementById('auto-draw-enabled');
+  const autoDrawToggle = document.getElementById("auto-draw-enabled");
   if (autoDrawToggle) {
-    autoDrawToggle.addEventListener('change', event => {
+    autoDrawToggle.addEventListener("change", (event) => {
       const intervalSeconds = readAutoDrawIntervalFromInputs();
       updateConfiguration({
         autoDraw: {
           enabled: event.target.checked,
-          intervalSeconds: intervalSeconds ?? defaultAutoDrawIntervalSeconds
-        }
+          intervalSeconds: intervalSeconds ?? defaultAutoDrawIntervalSeconds,
+        },
       });
       updateAutoDrawIntervalVisibility(event.target.checked);
       populateConfigurationForm(getState());
     });
   }
 
-  const minutesInput = document.getElementById('auto-draw-minutes');
-  const secondsInput = document.getElementById('auto-draw-seconds');
+  const minutesInput = document.getElementById("auto-draw-minutes");
+  const secondsInput = document.getElementById("auto-draw-seconds");
   const handleIntervalChange = () => {
     const intervalSeconds = readAutoDrawIntervalFromInputs();
     updateConfiguration({
       autoDraw: {
-        intervalSeconds: intervalSeconds ?? defaultAutoDrawIntervalSeconds
-      }
+        intervalSeconds: intervalSeconds ?? defaultAutoDrawIntervalSeconds,
+      },
     });
     populateConfigurationForm(getState());
   };
 
   if (minutesInput && secondsInput) {
-    [minutesInput, secondsInput].forEach(input => {
-      input.addEventListener('change', handleIntervalChange);
-      input.addEventListener('blur', () => {
+    [minutesInput, secondsInput].forEach((input) => {
+      input.addEventListener("change", handleIntervalChange);
+      input.addEventListener("blur", () => {
         const intervalSeconds = readAutoDrawIntervalFromInputs();
         if (!intervalSeconds) {
           populateConfigurationForm(getState());
@@ -280,15 +292,15 @@ function ensureConfigurationListeners() {
   }
 
   configurationListenersInitialized = true;
-  if (typeof window !== 'undefined') {
+  if (typeof window !== "undefined") {
     window.__configListenersReady = true;
   }
 }
 
 function appendNewSetButton(instructionsDiv) {
-  const newSetButton = document.createElement('button');
-  newSetButton.textContent = 'New Set';
-  newSetButton.addEventListener('click', async () => {
+  const newSetButton = document.createElement("button");
+  newSetButton.textContent = "New Set";
+  newSetButton.addEventListener("click", async () => {
     const state = getState();
     const roomCode = resolveRoomCodeFromLocation();
     const nextState = {
@@ -297,19 +309,22 @@ function appendNewSetButton(instructionsDiv) {
       roundNumber: 1,
       roundCompleted: false,
       started: false,
-      lastDrawn: []
+      lastDrawn: [],
     };
 
     if (roomCode) {
       roomSyncController.sendState(nextState);
     }
 
-    const params = serializeState({
-      configuration: state.configuration,
-      started: false
-    }, { roomCode });
+    const params = serializeState(
+      {
+        configuration: state.configuration,
+        started: false,
+      },
+      { roomCode },
+    );
     const search = params.toString();
-    const url = `${window.location.pathname}${search ? `?${search}` : ''}`;
+    const url = `${window.location.pathname}${search ? `?${search}` : ""}`;
     window.location.href = url;
   });
   instructionsDiv.appendChild(newSetButton);
@@ -318,7 +333,7 @@ function appendNewSetButton(instructionsDiv) {
 export function updateRoundTitle() {
   renderRoundTitle({
     state: getState(),
-    totalRounds
+    totalRounds,
   });
 }
 
@@ -331,7 +346,7 @@ function renderWorkoutFromState(state) {
     hasActiveCountdown: () => autoDrawController.hasActiveCountdown(),
     refreshDrawButtonLabel: () => autoDrawController.refreshDrawButtonLabel(),
     state,
-    totalRounds
+    totalRounds,
   });
 }
 
@@ -409,31 +424,52 @@ export async function startWorkout() {
 
   const stateSnapshot = getState();
   const multipliers = { ...defaultMultipliers };
-  suits.forEach(suit => {
+  suits.forEach((suit) => {
     const select = document.getElementById(`multiplier-${suit}`);
     if (select) {
       const value = Number.parseInt(select.value, 10);
-      multipliers[suit] = Number.isFinite(value) ? value : defaultMultipliers[suit];
+      multipliers[suit] = Number.isFinite(value)
+        ? value
+        : defaultMultipliers[suit];
     }
   });
 
-  const selectedThemeInput = document.querySelector('input[name="theme"]:checked');
-  const themeCandidate = selectedThemeInput ? selectedThemeInput.value : stateSnapshot.configuration.theme;
+  const selectedThemeInput = document.querySelector(
+    'input[name="theme"]:checked',
+  );
+  const themeCandidate = selectedThemeInput
+    ? selectedThemeInput.value
+    : stateSnapshot.configuration.theme;
   const theme = applyTheme(themeCandidate);
 
-  const endlessToggle = document.getElementById('endless-mode');
-  const endless = endlessToggle ? endlessToggle.checked : stateSnapshot.configuration.endless;
-  const autoDrawToggle = document.getElementById('auto-draw-enabled');
-  const autoDrawMinutesInput = document.getElementById('auto-draw-minutes');
-  const autoDrawSecondsInput = document.getElementById('auto-draw-seconds');
+  const endlessToggle = document.getElementById("endless-mode");
+  const endless = endlessToggle
+    ? endlessToggle.checked
+    : stateSnapshot.configuration.endless;
+  const autoDrawToggle = document.getElementById("auto-draw-enabled");
+  const autoDrawMinutesInput = document.getElementById("auto-draw-minutes");
+  const autoDrawSecondsInput = document.getElementById("auto-draw-seconds");
 
-  const minutesValue = autoDrawMinutesInput ? Number.parseInt(autoDrawMinutesInput.value, 10) : NaN;
-  const secondsValue = autoDrawSecondsInput ? Number.parseInt(autoDrawSecondsInput.value, 10) : NaN;
-  const normalizedMinutes = Number.isFinite(minutesValue) && minutesValue >= 0 ? minutesValue : 0;
-  const normalizedSeconds = Number.isFinite(secondsValue) && secondsValue >= 0 ? Math.min(secondsValue, 59) : 0;
+  const minutesValue = autoDrawMinutesInput
+    ? Number.parseInt(autoDrawMinutesInput.value, 10)
+    : NaN;
+  const secondsValue = autoDrawSecondsInput
+    ? Number.parseInt(autoDrawSecondsInput.value, 10)
+    : NaN;
+  const normalizedMinutes =
+    Number.isFinite(minutesValue) && minutesValue >= 0 ? minutesValue : 0;
+  const normalizedSeconds =
+    Number.isFinite(secondsValue) && secondsValue >= 0
+      ? Math.min(secondsValue, 59)
+      : 0;
   const computedIntervalSeconds = normalizedMinutes * 60 + normalizedSeconds;
-  const fallbackIntervalSeconds = stateSnapshot.configuration.autoDraw.intervalSeconds ?? defaultAutoDrawIntervalSeconds;
-  const intervalSeconds = computedIntervalSeconds > 0 ? computedIntervalSeconds : fallbackIntervalSeconds;
+  const fallbackIntervalSeconds =
+    stateSnapshot.configuration.autoDraw.intervalSeconds ??
+    defaultAutoDrawIntervalSeconds;
+  const intervalSeconds =
+    computedIntervalSeconds > 0
+      ? computedIntervalSeconds
+      : fallbackIntervalSeconds;
 
   autoDrawController.clear();
 
@@ -444,12 +480,14 @@ export async function startWorkout() {
     setRoundCompleted(false);
     setLastDrawn([]);
     setStarted(true);
-    const autoDrawEnabled = autoDrawToggle ? autoDrawToggle.checked : stateSnapshot.configuration.autoDraw.enabled;
+    const autoDrawEnabled = autoDrawToggle
+      ? autoDrawToggle.checked
+      : stateSnapshot.configuration.autoDraw.enabled;
     updateConfiguration({
       autoDraw: {
         enabled: autoDrawEnabled,
-        intervalSeconds
-      }
+        intervalSeconds,
+      },
     });
   });
 
@@ -464,7 +502,7 @@ function handleRestoredState(restored) {
   const { configuration } = resolveConfigurationFromSources({
     params,
     sourceConfiguration: restored.configuration,
-    derivedTheme
+    derivedTheme,
   });
 
   setInitialSerialized(params.toString());
@@ -472,9 +510,9 @@ function handleRestoredState(restored) {
   replaceState(
     {
       ...restored,
-      configuration
+      configuration,
     },
-    { silent: true }
+    { silent: true },
   );
 
   applyTheme(configuration.theme);
@@ -500,11 +538,11 @@ export async function initializeApp() {
   const { configuration } = resolveConfigurationFromSources({
     params,
     sourceConfiguration: persisted.configuration,
-    derivedTheme
+    derivedTheme,
   });
   let initialState = {
     ...persisted,
-    configuration
+    configuration,
   };
 
   const syncEnabled = await checkSyncHealth();
@@ -513,7 +551,10 @@ export async function initializeApp() {
 
   let remoteState = null;
   if (roomCode && syncEnabled) {
-    const syncResult = await roomSyncController.ensureSession(roomCode, applyRemoteState);
+    const syncResult = await roomSyncController.ensureSession(
+      roomCode,
+      applyRemoteState,
+    );
     remoteState = syncResult.remoteState;
     if (remoteState) {
       initialState = remoteState;
@@ -537,34 +578,40 @@ export async function initializeApp() {
     showConfigurationScreen();
   }
 
-  const remainingSeconds = remoteState ? null : persisted.autoDrawRemainingSeconds;
+  const remainingSeconds = remoteState
+    ? null
+    : persisted.autoDrawRemainingSeconds;
   autoDrawController.ensure(stateSnapshot, { remainingSeconds });
   if (roomCode && syncEnabled) {
     roomSyncController.rememberSyncedState(stateSnapshot);
   }
 
-  subscribe(state => {
+  subscribe((state) => {
     persistState(state);
     autoDrawController.ensure(state);
     persistConfigurationIfChanged(state.configuration);
     sendStateToSync(state);
   });
 
-  subscribeToPopState(restored => {
+  subscribeToPopState((restored) => {
     const nextParams = new URLSearchParams(window.location.search);
     const nextRoomCode = resolveRoomCode(nextParams);
-    roomSyncController.ensureSession(nextRoomCode, applyRemoteState).then(({ remoteState: nextRemoteState }) => {
-      if (nextRoomCode) {
-        if (nextRemoteState) {
-          applyRemoteState(nextRemoteState);
-          return;
+    roomSyncController
+      .ensureSession(nextRoomCode, applyRemoteState)
+      .then(({ remoteState: nextRemoteState }) => {
+        if (nextRoomCode) {
+          if (nextRemoteState) {
+            applyRemoteState(nextRemoteState);
+            return;
+          }
+          if (roomSyncController.hasRemoteState()) {
+            return;
+          }
         }
-        if (roomSyncController.hasRemoteState()) {
-          return;
-        }
-      }
-      handleRestoredState(restored);
-      autoDrawController.ensure(getState(), { remainingSeconds: restored.autoDrawRemainingSeconds });
-    });
+        handleRestoredState(restored);
+        autoDrawController.ensure(getState(), {
+          remainingSeconds: restored.autoDrawRemainingSeconds,
+        });
+      });
   });
 }
