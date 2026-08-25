@@ -49,6 +49,8 @@ import {
 import { playDrawSound } from "./audio.js";
 import { checkSyncHealth, createRoomSync } from "./syncClient.js";
 
+import Analytics from "./analytics.js";
+
 const DRAW_BUTTON_DEFAULT_LABEL = "Draw Cards";
 const AUTO_DRAW_REMAINING_UPDATE_MS = 1000;
 
@@ -100,6 +102,7 @@ function requestRoomJoin() {
     return;
   }
   const roomCode = roomSyncController.getRoomInputValue();
+  Analytics.joinRoom({ room: roomCode });
   roomSyncController.updateRoomParam(roomCode);
   void syncToRoom(roomCode);
 }
@@ -408,20 +411,22 @@ export function drawCards() {
     playDrawSound({ count: drawnCards.length });
   });
 
+  Analytics.drawCards({ cards: drawnCards });
+
   serializeAndRenderState();
   autoDrawController.schedule(getState());
 }
 
 export async function startWorkout() {
+  const roomCode = roomSyncController.getRoomInputValue();
+
   if (roomSyncController.isEnabled()) {
-    const roomCode = roomSyncController.getRoomInputValue();
     roomSyncController.updateRoomParam(roomCode);
     const remoteState = await syncToRoom(roomCode);
     if (remoteState) {
       return;
     }
   }
-
   const stateSnapshot = getState();
   const multipliers = { ...defaultMultipliers };
   suits.forEach((suit) => {
@@ -470,6 +475,12 @@ export async function startWorkout() {
     computedIntervalSeconds > 0
       ? computedIntervalSeconds
       : fallbackIntervalSeconds;
+
+  Analytics.startWorkout({
+    theme: themeCandidate,
+    drawInterval: intervalSeconds,
+    room: roomCode,
+  });
 
   autoDrawController.clear();
 
