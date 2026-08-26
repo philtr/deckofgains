@@ -20,13 +20,12 @@
     />
     <script
       defer
-      src="https://umami.willow.network/script.js"
+      src="/analytics/script.js"
       data-website-id="7c8cf4cd-5d6b-4bd3-968a-b5699e36b980"
-    ></script>
-    <script
-      defer
-      src="https://umami.willow.network/recorder.js"
-      data-website-id="7c8cf4cd-5d6b-4bd3-968a-b5699e36b980"
+      data-auto-pageview="false"
+      data-exclude-search="true"
+      data-performance="true"
+      data-do-not-track="true"
     ></script>
     <title>Deck of Gains</title>
   </head>
@@ -124,7 +123,7 @@
                 name="theme"
                 value="casino"
                 checked
-                data-umami-event="Switch Theme"
+                data-umami-event="theme_selected"
                 data-umami-event-theme="casino"
               />
               <span>Casino</span>
@@ -134,7 +133,7 @@
                 type="radio"
                 name="theme"
                 value="rugged"
-                data-umami-event="Switch Theme"
+                data-umami-event="theme_selected"
                 data-umami-event-theme="rugged"
               />
               <span>Rugged</span>
@@ -144,7 +143,7 @@
                 type="radio"
                 name="theme"
                 value="plain"
-                data-umami-event="Switch Theme"
+                data-umami-event="theme_selected"
                 data-umami-event-theme="plain"
               />
               <span>Plain</span>

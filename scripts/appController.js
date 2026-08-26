@@ -54,13 +54,17 @@ import Analytics from "./analytics.js";
 const DRAW_BUTTON_DEFAULT_LABEL = "Draw Cards";
 const AUTO_DRAW_REMAINING_UPDATE_MS = 1000;
 
+function getAnalyticsMode(configuration) {
+  return configuration.endless ? "endless" : "finite";
+}
+
 let configurationListenersInitialized = false;
 let lastStoredConfiguration = null;
 
 const autoDrawController = createAutoDrawController({
   getState,
   onAutoDraw: () => {
-    drawCards();
+    drawCards({ trigger: "auto" });
   },
   persistRemainingSeconds: (remainingSeconds) => {
     replaceStateWithAutoDrawRemaining(getState(), remainingSeconds);
@@ -102,7 +106,7 @@ function requestRoomJoin() {
     return;
   }
   const roomCode = roomSyncController.getRoomInputValue();
-  Analytics.joinRoom({ room: roomCode });
+  void Analytics.roomJoinRequested();
   roomSyncController.updateRoomParam(roomCode);
   void syncToRoom(roomCode);
 }
@@ -133,6 +137,7 @@ function applyRemoteState(remoteState) {
     return;
   }
 
+  const previousState = getState();
   roomSyncController.markRemoteStateReceived();
   roomSyncController.suppressOutbound(() => {
     replaceState(remoteState);
@@ -146,6 +151,16 @@ function applyRemoteState(remoteState) {
       renderWorkoutFromState(state);
     } else {
       showConfigurationScreen();
+    }
+    void Analytics.trackView(state.started ? "workout" : "setup");
+    if (state.started && !previousState.started) {
+      void Analytics.workoutResumed({
+        source: "room",
+        round: state.roundNumber,
+        theme: state.configuration.theme,
+        mode: getAnalyticsMode(state.configuration),
+        has_room: true,
+      });
     }
   });
 }
@@ -306,6 +321,11 @@ function appendNewSetButton(instructionsDiv) {
   newSetButton.addEventListener("click", async () => {
     const state = getState();
     const roomCode = resolveRoomCodeFromLocation();
+    void Analytics.newSetStarted({
+      has_room: Boolean(roomCode),
+      theme: state.configuration.theme,
+      auto_draw: state.configuration.autoDraw.enabled,
+    });
     const nextState = {
       configuration: state.configuration,
       deck: buildDeck(),
@@ -398,12 +418,13 @@ export function doDrawCards() {
   return drawnCards;
 }
 
-export function drawCards() {
+export function drawCards({ trigger = "manual" } = {}) {
   updateRoundTitle();
 
   let drawnCards = [];
+  let stateBeforeDraw;
   suppressNotifications(() => {
-    const stateBeforeDraw = getState();
+    stateBeforeDraw = getState();
     drawnCards = doDrawCards();
     const newRoundNumber = stateBeforeDraw.roundNumber + 1;
     setRoundCompleted(true);
@@ -411,7 +432,32 @@ export function drawCards() {
     playDrawSound({ count: drawnCards.length });
   });
 
-  Analytics.drawCards({ cards: drawnCards });
+  const stateAfterDraw = getState();
+  const totals = calculateTotals(drawnCards, stateBeforeDraw.configuration);
+  const repTotal = Object.values(totals).reduce(
+    (sum, value) => sum + value,
+    0,
+  );
+  const finalDraw =
+    !stateBeforeDraw.configuration.endless && stateAfterDraw.deck.length === 0;
+
+  void Analytics.roundDrawn({
+    round: stateBeforeDraw.roundNumber,
+    trigger,
+    card_count: drawnCards.length,
+    rep_total: repTotal,
+    remaining_cards: stateAfterDraw.deck.length,
+    final_draw: finalDraw,
+  });
+  if (finalDraw) {
+    void Analytics.workoutCompleted({
+      round_count: stateBeforeDraw.roundNumber,
+      trigger,
+      theme: stateBeforeDraw.configuration.theme,
+      auto_draw: stateBeforeDraw.configuration.autoDraw.enabled,
+      has_room: Boolean(resolveRoomCodeFromLocation()),
+    });
+  }
 
   serializeAndRenderState();
   autoDrawController.schedule(getState());
@@ -476,13 +522,11 @@ export async function startWorkout() {
       ? computedIntervalSeconds
       : fallbackIntervalSeconds;
 
-  Analytics.startWorkout({
-    theme: themeCandidate,
-    drawInterval: intervalSeconds,
-    room: roomCode,
-  });
-
   autoDrawController.clear();
+
+  const autoDrawEnabled = autoDrawToggle
+    ? autoDrawToggle.checked
+    : stateSnapshot.configuration.autoDraw.enabled;
 
   suppressNotifications(() => {
     updateConfiguration({ multipliers, theme, endless });
@@ -491,9 +535,6 @@ export async function startWorkout() {
     setRoundCompleted(false);
     setLastDrawn([]);
     setStarted(true);
-    const autoDrawEnabled = autoDrawToggle
-      ? autoDrawToggle.checked
-      : stateSnapshot.configuration.autoDraw.enabled;
     updateConfiguration({
       autoDraw: {
         enabled: autoDrawEnabled,
@@ -502,12 +543,26 @@ export async function startWorkout() {
     });
   });
 
+  void Analytics.trackView("workout");
+  void Analytics.workoutStarted({
+    theme,
+    mode: endless ? "endless" : "finite",
+    auto_draw: autoDrawEnabled,
+    auto_interval_seconds: intervalSeconds,
+    has_room: Boolean(roomCode),
+    hearts_multiplier: multipliers.hearts,
+    spades_multiplier: multipliers.spades,
+    diamonds_multiplier: multipliers.diamonds,
+    clubs_multiplier: multipliers.clubs,
+  });
+
   populateConfigurationForm(getState());
   renderWorkoutFromState(getState());
   autoDrawController.schedule(getState());
 }
 
 function handleRestoredState(restored) {
+  const previousState = getState();
   const params = new URLSearchParams(window.location.search);
   const derivedTheme = deriveInitialTheme(params);
   const { configuration } = resolveConfigurationFromSources({
@@ -537,9 +592,22 @@ function handleRestoredState(restored) {
   } else {
     showConfigurationScreen();
   }
+
+  const restoredState = getState();
+  void Analytics.trackView(restoredState.started ? "workout" : "setup");
+  if (restoredState.started && !previousState.started) {
+    void Analytics.workoutResumed({
+      source: "url",
+      round: restoredState.roundNumber,
+      theme: restoredState.configuration.theme,
+      mode: getAnalyticsMode(restoredState.configuration),
+      has_room: Boolean(resolveRoomCodeFromLocation()),
+    });
+  }
 }
 
 export async function initializeApp() {
+  Analytics.initialize();
   bindStateToWindow(window);
 
   const params = new URLSearchParams(window.location.search);
@@ -590,6 +658,17 @@ export async function initializeApp() {
     renderWorkoutFromState(stateSnapshot);
   } else {
     showConfigurationScreen();
+  }
+
+  void Analytics.trackView(stateSnapshot.started ? "workout" : "setup");
+  if (stateSnapshot.started) {
+    void Analytics.workoutResumed({
+      source: remoteState ? "room" : "url",
+      round: stateSnapshot.roundNumber,
+      theme: stateSnapshot.configuration.theme,
+      mode: getAnalyticsMode(stateSnapshot.configuration),
+      has_room: Boolean(roomCode),
+    });
   }
 
   const remainingSeconds = remoteState

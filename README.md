@@ -57,6 +57,16 @@ Then open `http://127.0.0.1:8000/index.html`.
 - A live countdown appears on the **Draw Cards** button whenever auto-draw is active, so you know exactly when the next hand will hit.
 - Every draw now rides the same clean **whoosh** sound effect. Pull four cards and you'll hear four whooshes; pull eight and the audio ramps up to match with each whoosh spaced just enough apart to land distinctly.
 
+## Analytics & Privacy 📊
+
+Deck of Gains uses a self-hosted Umami instance to understand whether people start, progress through, resume, and complete workouts. Analytics pageviews represent the setup and workout screens instead of every URL state update. Workout state, deck contents, sync hosts, and room names are excluded from analytics URLs and custom-event data; standard `utm_source`, `utm_medium`, `utm_campaign`, `utm_term`, and `utm_content` values are retained for campaign attribution.
+
+The app stores a random anonymous browser identifier in `localStorage` under `deckOfGains:analyticsId` so repeat use can be measured across visits. It contains no account or profile information. Clearing the site's browser data resets the identifier, and browsers with Do Not Track enabled neither create the identifier nor send app-managed analytics.
+
+Umami also samples session replays and heatmaps. Form inputs are masked, the group-join area is excluded from recording, and recordings are used to diagnose interaction and layout issues. Core Web Vitals are collected to monitor real-world loading, responsiveness, and visual stability.
+
+On Netlify, `/analytics/*` is proxied to the configured Umami service without a build step. The app remains fully functional when that proxy is unavailable; analytics initialization emits one console warning, then tracking stays disabled without creating an anonymous identifier or loading the replay recorder.
+
 ## Why This Exists 🤔
 
 Because working out should be fun. Or at least unpredictable. Or, at the very least, rugged.
