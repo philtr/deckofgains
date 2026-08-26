@@ -1,0 +1,5 @@
+[[redirects]]
+  from = "/analytics/*"
+  to = "https://umami.willow.network/:splat"
+  status = 200
+  force = true

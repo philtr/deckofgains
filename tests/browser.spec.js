@@ -133,6 +133,75 @@ async function expectRepSummary(page, expectedItems) {
   }
 }
 
+async function installAnalyticsMock(
+  page,
+  { doNotTrack = false, available = true } = {},
+) {
+  await page.addInitScript(({ dntEnabled, analyticsAvailable }) => {
+    const analyticsWarnings = [];
+    const originalWarn = window.console.warn.bind(window.console);
+    window.console.warn = (...args) => {
+      analyticsWarnings.push(args.map(String).join(" "));
+      originalWarn(...args);
+    };
+    window.__getAnalyticsWarnings = () => [...analyticsWarnings];
+
+    if (dntEnabled) {
+      Object.defineProperty(window.navigator, "doNotTrack", {
+        configurable: true,
+        value: "1",
+      });
+    }
+
+    const callsKey = "__deckOfGains:umamiCalls";
+    const readCalls = () => {
+      try {
+        return JSON.parse(window.localStorage.getItem(callsKey) ?? "[]");
+      } catch (error) {
+        return [];
+      }
+    };
+    const record = (call) => {
+      try {
+        const calls = readCalls();
+        calls.push(call);
+        window.localStorage.setItem(callsKey, JSON.stringify(calls));
+      } catch (error) {
+        // Tests that disable storage can still exercise the no-op path.
+      }
+      return Promise.resolve(call);
+    };
+
+    window.__getUmamiCalls = readCalls;
+    if (!analyticsAvailable) {
+      return;
+    }
+    window.umami = {
+      identify(id, data) {
+        return record({ type: "identify", id, data });
+      },
+      track(eventOrPayload, data) {
+        if (typeof eventOrPayload === "function") {
+          const payload = eventOrPayload({
+            hostname: window.location.hostname,
+            language: window.navigator.language,
+            referrer: document.referrer,
+            screen: `${window.screen.width}x${window.screen.height}`,
+            title: document.title,
+            url: window.location.href,
+          });
+          return record({ type: "pageview", payload });
+        }
+        return record({ type: "event", name: eventOrPayload, data });
+      },
+    };
+  }, { dntEnabled: doNotTrack, analyticsAvailable: available });
+}
+
+async function getAnalyticsCalls(page) {
+  return page.evaluate(() => window.__getUmamiCalls?.() ?? []);
+}
+
 async function installRoomSocketMock(page, { onUpdate } = {}) {
   if (onUpdate) {
     await page.exposeFunction("__reportRoomUpdate", (payload) => {
@@ -204,7 +273,17 @@ async function installRoomSocketMock(page, { onUpdate } = {}) {
 }
 
 test.describe("Deck of Gains app", () => {
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ page }, testInfo) => {
+    await installAnalyticsMock(page, {
+      doNotTrack: testInfo.title.includes("Do Not Track"),
+      available: !testInfo.title.includes("analytics is unavailable"),
+    });
+    await page.route("**/analytics/script.js", (route) =>
+      route.fulfill({ contentType: "application/javascript", body: "" }),
+    );
+    await page.route("**/analytics/recorder.js", (route) =>
+      route.fulfill({ contentType: "application/javascript", body: "" }),
+    );
     await page.route("http://localhost:4000/healthz", (route) => {
       return route.fulfill({
         status: 200,
@@ -228,6 +307,240 @@ test.describe("Deck of Gains app", () => {
     });
 
     await page.goto(baseUrl);
+  });
+
+  test("configures Umami for sanitized manual pageviews and performance", async ({
+    page,
+  }) => {
+    const tracker = page.locator(
+      'script[src="/analytics/script.js"]',
+    );
+
+    await expect(tracker).toHaveAttribute("data-auto-pageview", "false");
+    await expect(tracker).toHaveAttribute("data-exclude-search", "true");
+    await expect(tracker).toHaveAttribute("data-performance", "true");
+    await expect(tracker).toHaveAttribute("data-do-not-track", "true");
+
+    const recorder = page.locator(
+      'script[src="/analytics/recorder.js"]',
+    );
+    await expect(recorder).toHaveCount(1);
+    await expect(recorder).toHaveAttribute(
+      "data-website-id",
+      "7c8cf4cd-5d6b-4bd3-968a-b5699e36b980",
+    );
+  });
+
+  test("identifies the browser persistently and sends sanitized virtual pageviews", async ({
+    page,
+  }) => {
+    const firstId = await page.evaluate(() =>
+      window.localStorage.getItem("deckOfGains:analyticsId"),
+    );
+    expect(firstId).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+    );
+
+    const url = new URL(baseUrl);
+    url.searchParams.set("utm_source", "newsletter");
+    url.searchParams.set("utm_medium", "email");
+    url.searchParams.set("room", "private-room");
+    url.searchParams.set("sync", "https://private.example");
+    url.searchParams.set("started", "1");
+    url.searchParams.set("round", "3");
+    url.searchParams.set("deck", "h-2.s-3");
+    url.searchParams.set("multipliers", "h-1.s-1.d-1.c-2");
+    await page.goto(url.toString());
+    await page.waitForFunction(() =>
+      (window.__getUmamiCalls?.() ?? []).some(
+        (call) =>
+          call.type === "pageview" &&
+          call.payload?.url?.includes("view=workout"),
+      ),
+    );
+
+    const calls = await getAnalyticsCalls(page);
+    const identifyCalls = calls.filter((call) => call.type === "identify");
+    expect(identifyCalls).toHaveLength(2);
+    expect(identifyCalls.every((call) => call.id === firstId)).toBe(true);
+
+    const pageviews = calls.filter((call) => call.type === "pageview");
+    expect(pageviews.at(-1).payload.url).toBe(
+      "/index.html?view=workout&utm_source=newsletter&utm_medium=email",
+    );
+    expect(JSON.stringify(pageviews)).not.toContain("private-room");
+    expect(JSON.stringify(pageviews)).not.toContain("private.example");
+    expect(JSON.stringify(pageviews)).not.toContain("deck=");
+  });
+
+  test("Do Not Track disables identification and app-managed analytics", async ({
+    page,
+  }) => {
+    expect(
+      await page.evaluate(() =>
+        window.localStorage.getItem("deckOfGains:analyticsId"),
+      ),
+    ).toBeNull();
+    expect(await getAnalyticsCalls(page)).toEqual([]);
+    await expect(
+      page.locator('script[src="/analytics/recorder.js"]'),
+    ).toHaveCount(0);
+    expect(
+      await page.evaluate(() => window.__getAnalyticsWarnings?.() ?? []),
+    ).toEqual([]);
+  });
+
+  test("warns once when analytics is unavailable", async ({ page }) => {
+    expect(
+      await page.evaluate(() => window.__getAnalyticsWarnings?.() ?? []),
+    ).toEqual([
+      "[Deck of Gains] Analytics unavailable; usage will not be tracked.",
+    ]);
+    expect(
+      await page.evaluate(() =>
+        window.localStorage.getItem("deckOfGains:analyticsId"),
+      ),
+    ).toBeNull();
+    await expect(page.locator('script[src="/analytics/recorder.js"]')).toHaveCount(
+      0,
+    );
+  });
+
+  test("tracks workout lifecycle events with low-cardinality properties", async ({
+    page,
+  }) => {
+    await startWorkoutWithOptions(page, {
+      theme: "rugged",
+      multipliers: { hearts: 2, spades: 3, diamonds: 4, clubs: 5 },
+    });
+
+    await setDeck(page, [
+      { suit: "hearts", number: 2 },
+      { suit: "spades", number: 2 },
+      { suit: "diamonds", number: 2 },
+      { suit: "clubs", number: 2 },
+    ]);
+    await page.evaluate(() => {
+      roundNumber = 12;
+      roundCompleted = false;
+      drawCards();
+      drawCards();
+    });
+
+    const calls = await getAnalyticsCalls(page);
+    const events = calls.filter((call) => call.type === "event");
+    expect(events.find((call) => call.name === "workout_started")).toEqual({
+      type: "event",
+      name: "workout_started",
+      data: {
+        theme: "rugged",
+        mode: "finite",
+        auto_draw: false,
+        auto_interval_seconds: 150,
+        has_room: false,
+        hearts_multiplier: 2,
+        spades_multiplier: 3,
+        diamonds_multiplier: 4,
+        clubs_multiplier: 5,
+      },
+    });
+    expect(events.find((call) => call.name === "round_drawn")).toEqual({
+      type: "event",
+      name: "round_drawn",
+      data: {
+        round: 12,
+        trigger: "manual",
+        card_count: 4,
+        rep_total: 28,
+        remaining_cards: 0,
+        final_draw: true,
+      },
+    });
+    expect(
+      events.filter((call) => call.name === "workout_completed"),
+    ).toEqual([
+      {
+        type: "event",
+        name: "workout_completed",
+        data: {
+          round_count: 12,
+          trigger: "manual",
+          theme: "rugged",
+          auto_draw: false,
+          has_room: false,
+        },
+      },
+    ]);
+    expect(JSON.stringify(events)).not.toContain('"cards"');
+    expect(JSON.stringify(events)).not.toContain('"room"');
+  });
+
+  test("tracks auto draws and never completes an endless workout", async ({
+    page,
+  }) => {
+    await startWorkoutWithOptions(page, {
+      endless: true,
+      autoDraw: { enabled: true, intervalSeconds: 1 },
+    });
+    await setDeck(page, [{ suit: "hearts", number: 2 }]);
+
+    await page.waitForFunction(() =>
+      (window.__getUmamiCalls?.() ?? []).some(
+        (call) => call.name === "round_drawn" && call.data?.trigger === "auto",
+      ),
+    );
+
+    const events = (await getAnalyticsCalls(page)).filter(
+      (call) => call.type === "event",
+    );
+    expect(events.some((call) => call.name === "workout_completed")).toBe(
+      false,
+    );
+  });
+
+  test("tracks resumed workouts, room intent, and the canonical theme event", async ({
+    page,
+  }) => {
+    const resumedUrl = new URL(baseUrl);
+    resumedUrl.searchParams.set("started", "1");
+    resumedUrl.searchParams.set("round", "4");
+    resumedUrl.searchParams.set("deck", "h-2.s-3");
+    resumedUrl.searchParams.set("theme", "plain");
+    resumedUrl.searchParams.set("multipliers", "h-1.s-1.d-1.c-2");
+    await page.goto(resumedUrl.toString());
+
+    const resumeEvent = (await getAnalyticsCalls(page)).find(
+      (call) => call.name === "workout_resumed",
+    );
+    expect(resumeEvent).toEqual({
+      type: "event",
+      name: "workout_resumed",
+      data: {
+        source: "url",
+        round: 4,
+        theme: "plain",
+        mode: "finite",
+        has_room: false,
+      },
+    });
+
+    await page.goto(baseUrl);
+    await page.fill("#room-code", "secret-room");
+    await page.click("#join-room");
+    const roomEvent = (await getAnalyticsCalls(page)).find(
+      (call) => call.name === "room_join_requested",
+    );
+    expect(roomEvent).toEqual({
+      type: "event",
+      name: "room_join_requested",
+    });
+    expect(JSON.stringify(roomEvent)).not.toContain("secret-room");
+
+    const themeInputs = page.locator('input[name="theme"]');
+    await expect(themeInputs.first()).toHaveAttribute(
+      "data-umami-event",
+      "theme_selected",
+    );
   });
 
   test("shows the configuration screen on load", async ({ page }) => {
@@ -558,6 +871,18 @@ test.describe("Deck of Gains app", () => {
 
     const params = new URL(page.url()).searchParams;
     expect(params.get("room")).toBe("abc");
+
+    const resumeEvent = (await getAnalyticsCalls(page)).find(
+      (call) =>
+        call.name === "workout_resumed" && call.data?.source === "room",
+    );
+    expect(resumeEvent?.data).toEqual({
+      source: "room",
+      round: 3,
+      theme: "rugged",
+      mode: "finite",
+      has_room: true,
+    });
   });
 
   test("sync param overrides the sync server base url", async ({ page }) => {
@@ -1392,6 +1717,19 @@ test.describe("Deck of Gains app", () => {
     expect(params.get("auto")).toBe("1");
     expect(params.get("autoIntervalSeconds")).toBe("125");
     expect(params.get("endless")).toBe(null);
+
+    const newSetEvent = (await getAnalyticsCalls(page)).find(
+      (call) => call.name === "new_set_started",
+    );
+    expect(newSetEvent).toEqual({
+      type: "event",
+      name: "new_set_started",
+      data: {
+        has_room: false,
+        theme: "rugged",
+        auto_draw: true,
+      },
+    });
   });
 
   test("the New Set button resets the synced room state", async ({ page }) => {
