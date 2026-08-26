@@ -235,6 +235,38 @@ test.describe("Deck of Gains app", () => {
     await expect(page.locator("#app")).toBeHidden();
   });
 
+  test("applies the default casino theme before app initialization finishes", async ({
+    page,
+  }) => {
+    let releaseHealthCheck;
+    const healthCheckBlocked = new Promise((resolve) => {
+      releaseHealthCheck = resolve;
+    });
+
+    await page.unroute("http://localhost:4000/healthz");
+    await page.route("http://localhost:4000/healthz", async (route) => {
+      await healthCheckBlocked;
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        headers: {
+          "Access-Control-Allow-Origin": "*",
+        },
+        body: JSON.stringify({ ok: true }),
+      });
+    });
+
+    await page.goto(baseUrl, { waitUntil: "domcontentloaded" });
+
+    try {
+      expect(await page.locator("body").getAttribute("data-theme")).toBe(
+        "casino",
+      );
+    } finally {
+      releaseHealthCheck();
+    }
+  });
+
   test("shows the group join box on the setup screen", async ({ page }) => {
     await expect(page.locator("#group-join")).toBeVisible();
     await expect(page.locator("#room-code")).toBeVisible();

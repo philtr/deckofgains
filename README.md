@@ -2,6 +2,8 @@
 
 Welcome to **Deck of Gains**, the app that turns a deck of cards into your personal trainer. Forget spreadsheets and boring routines—this is where fitness meets chaos and card tables. Whether you’re here to spice up your workouts, dominate your fitness tribe, or just prove how rugged you are, **Deck of Gains** has you covered.
 
+The casino theme is the default and is applied on the first render, while saved or URL-selected themes are restored immediately during startup.
+
 **NOTE:** Almost everything you see here is AI-generated. I make no guarantees of code quality or correctness!
 
 ## What It Does 🎲

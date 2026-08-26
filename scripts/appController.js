@@ -556,6 +556,9 @@ export async function initializeApp() {
     configuration,
   };
 
+  // Theme the first render before waiting on optional group-sync networking.
+  applyTheme(configuration.theme);
+
   const syncEnabled = await checkSyncHealth();
   roomSyncController.setEnabled(syncEnabled);
   roomSyncController.setControlsEnabled(syncEnabled);
