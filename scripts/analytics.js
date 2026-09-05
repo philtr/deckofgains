@@ -1,3 +1,5 @@
+import { createAnalyticsAdapter } from "./analyticsAdapter.js";
+
 const ANALYTICS_ID_KEY = "deckOfGains:analyticsId";
 const UMAMI_WEBSITE_ID = "7c8cf4cd-5d6b-4bd3-968a-b5699e36b980";
 const UMAMI_RECORDER_URL = "/analytics/recorder.js";
@@ -13,6 +15,7 @@ const UTM_PARAMETERS = [
 
 let initialized = false;
 let trackingDisabled = false;
+let adapter = null;
 let lastTrackedView = null;
 let initialUtmParameters = new URLSearchParams();
 let workoutCompletionTracked = false;
@@ -97,11 +100,11 @@ function buildVirtualUrl(view) {
 }
 
 function track(event, data) {
-  if (trackingDisabled || typeof window.umami?.track !== "function") {
+  if (trackingDisabled || !adapter) {
     return Promise.resolve();
   }
 
-  return Promise.resolve(window.umami.track(event, data));
+  return adapter.track(event, data);
 }
 
 const Analytics = {
@@ -114,34 +117,31 @@ const Analytics = {
     if (trackingDisabled) {
       return;
     }
-    if (typeof window.umami?.track !== "function") {
+    adapter = createAnalyticsAdapter();
+    if (!adapter) {
       trackingDisabled = true;
       console.warn(ANALYTICS_UNAVAILABLE_WARNING);
       return;
     }
 
-    loadRecorder();
     initialUtmParameters = captureInitialUtmParameters();
-    const anonymousId = getOrCreateAnonymousId();
-    if (anonymousId && typeof window.umami?.identify === "function") {
-      window.umami.identify(anonymousId);
+    if (adapter.kind === "umami") {
+      loadRecorder();
+      const anonymousId = getOrCreateAnonymousId();
+      if (anonymousId) {
+        void adapter.identify(anonymousId);
+      }
     }
   },
 
   trackView(view) {
-    if (
-      trackingDisabled ||
-      lastTrackedView === view ||
-      typeof window.umami?.track !== "function"
-    ) {
+    if (trackingDisabled || lastTrackedView === view || !adapter) {
       return Promise.resolve();
     }
 
     lastTrackedView = view;
     const url = buildVirtualUrl(view);
-    return Promise.resolve(
-      window.umami.track((properties) => ({ ...properties, url })),
-    );
+    return adapter.trackView(url);
   },
 
   workoutStarted(data) {
@@ -168,6 +168,14 @@ const Analytics = {
 
   newSetStarted(data) {
     return track("new_set_started", data);
+  },
+
+  feedbackRated(data) {
+    return track("app_feedback_rated", data);
+  },
+
+  feedbackSubmitted(data) {
+    return track("app_feedback_submitted", data);
   },
 
   roomJoinRequested() {
