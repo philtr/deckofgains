@@ -275,6 +275,96 @@ body {
   margin: 0;
 }
 
+.workout-feedback {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 20px;
+  border: 1px solid rgba(15, 23, 42, 0.16);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.72);
+  text-align: center;
+}
+
+.workout-feedback h2,
+.workout-feedback p {
+  margin: 0;
+}
+
+.workout-feedback h2 {
+  font-size: 1.15rem;
+}
+
+.feedback-rating-controls,
+.feedback-form,
+.feedback-form-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.feedback-rating-controls button,
+.feedback-form button {
+  font-size: 1rem;
+}
+
+.feedback-skip {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-decoration: underline;
+}
+
+.feedback-skip:hover {
+  box-shadow: none;
+}
+
+body[data-theme="plain"] button.feedback-skip,
+body[data-theme="casino"] button.feedback-skip,
+body[data-theme="rugged"] button.feedback-skip {
+  background: transparent;
+  color: inherit;
+  box-shadow: none;
+}
+
+body[data-theme="plain"] button.feedback-skip:hover,
+body[data-theme="casino"] button.feedback-skip:hover,
+body[data-theme="rugged"] button.feedback-skip:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+.feedback-form {
+  width: min(100%, 520px);
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.feedback-form-actions {
+  align-self: center;
+}
+
+.feedback-form label {
+  font-size: 0.9rem;
+  font-weight: 700;
+  text-align: left;
+}
+
+.feedback-form textarea {
+  box-sizing: border-box;
+  width: 100%;
+  resize: vertical;
+  padding: 10px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font: inherit;
+}
+
 .rep-summary-item {
   display: flex;
   flex-direction: column;
@@ -495,6 +585,17 @@ body[data-theme="plain"] {
     accent-color: #111827;
   }
 
+  .workout-feedback {
+    background: #ffffff;
+    border-color: #d1d5db;
+  }
+
+  .feedback-form textarea {
+    background: #ffffff;
+    border-color: #d1d5db;
+    color: #1f2933;
+  }
+
   .site-footer {
     color: rgba(17, 24, 39, 0.65);
   }
@@ -602,6 +703,17 @@ body[data-theme="casino"] {
 
   .mode-option input[type="checkbox"] {
     accent-color: #f6f1a1;
+  }
+
+  .workout-feedback {
+    background: rgba(0, 0, 0, 0.22);
+    border-color: rgba(255, 255, 255, 0.25);
+  }
+
+  .feedback-form textarea {
+    background: rgba(255, 255, 255, 0.16);
+    border-color: rgba(255, 255, 255, 0.35);
+    color: #ffffff;
   }
 
   .site-footer {
@@ -750,6 +862,17 @@ body[data-theme="rugged"] {
 
   .mode-option input[type="checkbox"] {
     accent-color: #ff4500;
+  }
+
+  .workout-feedback {
+    background: rgba(0, 0, 0, 0.45);
+    border-color: rgba(255, 69, 0, 0.45);
+  }
+
+  .feedback-form textarea {
+    background: rgba(34, 34, 34, 0.85);
+    border-color: rgba(255, 69, 0, 0.6);
+    color: #ffffff;
   }
 
   .site-footer {

@@ -37,7 +37,7 @@ Activate the **Rugged Theme** and prove you’re ready to enter the tribe of leg
 1. Open the app in your browser.
 2. **Add to Home Screen** for a full-screen experience (especially on iOS).
 3. Hit "Draw Cards" and let the pain begin.
-4. Once the deck is done, hit "New Set" to start over with the same theme and settings—or collapse in glory.
+4. Once the deck is done, share a thumbs-up or thumbs-down rating and, if you want, send written feedback. Skip hides this prompt for three months. Then hit "New Set" to start over with the same theme and settings—or collapse in glory.
 5. Want to switch it up? Add `?theme=plain` for the minimal look or `?theme=rugged` for the warrior’s playground (the legacy `?rugged=true` still works).
 6. On landscape tablets and larger screens, the drawn cards stay on the left in a 2x2 grid while the rep summary sits on the right in its own 2x2 grid with oversized counts that scale with the tile size, the exercise name underneath, and zeroes shown for any exercise not in the current draw.
 7. Your configuration _and_ active workout are mirrored in the URL, so refreshing the page or sharing the link drops you—and your unsuspecting friends—right back into the current round. Suits are shortened to `h/s/d/c` codes to keep those links lean, invalid card values are ignored when restoring state, auto-draw resumes from the `autoRemainingSeconds` value when present, and your latest configuration is cached locally so it comes back on a plain reload (URL settings still win).
@@ -61,11 +61,13 @@ Then open `http://127.0.0.1:8000/index.html`.
 
 Deck of Gains uses a self-hosted Umami instance to understand whether people start, progress through, resume, and complete workouts. Analytics pageviews represent the setup and workout screens instead of every URL state update. Workout state, deck contents, sync hosts, and room names are excluded from analytics URLs and custom-event data; standard `utm_source`, `utm_medium`, `utm_campaign`, `utm_term`, and `utm_content` values are retained for campaign attribution.
 
+After a finite workout, the app can collect a thumbs-up or thumbs-down rating. Selecting a rating sends that choice to Umami. Written feedback is only sent when the user submits the feedback form. After a rating, feedback submission, or skip, a cookie hides the prompt for 90 days.
+
 The app stores a random anonymous browser identifier in `localStorage` under `deckOfGains:analyticsId` so repeat use can be measured across visits. It contains no account or profile information. Clearing the site's browser data resets the identifier, and browsers with Do Not Track enabled neither create the identifier nor send app-managed analytics.
 
 Umami also samples session replays and heatmaps. Form inputs are masked, the group-join area is excluded from recording, and recordings are used to diagnose interaction and layout issues. Core Web Vitals are collected to monitor real-world loading, responsiveness, and visual stability.
 
-On Netlify, `/analytics/*` is proxied to the configured Umami service without a build step. The app remains fully functional when that proxy is unavailable; analytics initialization emits one console warning, then tracking stays disabled without creating an anonymous identifier or loading the replay recorder.
+On Netlify, `/analytics/*` is proxied to the configured Umami service without a build step. During local development, an unavailable Umami client is replaced by a console adapter that logs pageviews and events with the `[Deck of Gains analytics]` prefix. On other hosts, initialization emits one warning and disables tracking when Umami is unavailable.
 
 ## Why This Exists 🤔
 

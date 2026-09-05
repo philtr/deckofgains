@@ -139,12 +139,21 @@ async function installAnalyticsMock(
 ) {
   await page.addInitScript(({ dntEnabled, analyticsAvailable }) => {
     const analyticsWarnings = [];
+    const analyticsLogs = [];
     const originalWarn = window.console.warn.bind(window.console);
+    const originalLog = window.console.log.bind(window.console);
     window.console.warn = (...args) => {
       analyticsWarnings.push(args.map(String).join(" "));
       originalWarn(...args);
     };
+    window.console.log = (...args) => {
+      if (args[0] === "[Deck of Gains analytics]") {
+        analyticsLogs.push(args[1]);
+      }
+      originalLog(...args);
+    };
     window.__getAnalyticsWarnings = () => [...analyticsWarnings];
+    window.__getAnalyticsLogs = () => [...analyticsLogs];
 
     if (dntEnabled) {
       Object.defineProperty(window.navigator, "doNotTrack", {
@@ -390,12 +399,12 @@ test.describe("Deck of Gains app", () => {
     ).toEqual([]);
   });
 
-  test("warns once when analytics is unavailable", async ({ page }) => {
+  test("uses the dev console adapter when analytics is unavailable", async ({
+    page,
+  }) => {
     expect(
       await page.evaluate(() => window.__getAnalyticsWarnings?.() ?? []),
-    ).toEqual([
-      "[Deck of Gains] Analytics unavailable; usage will not be tracked.",
-    ]);
+    ).toEqual([]);
     expect(
       await page.evaluate(() =>
         window.localStorage.getItem("deckOfGains:analyticsId"),
@@ -404,6 +413,28 @@ test.describe("Deck of Gains app", () => {
     await expect(page.locator('script[src="/analytics/recorder.js"]')).toHaveCount(
       0,
     );
+
+    await startWorkoutWithOptions(page, { theme: "plain" });
+
+    expect(await page.evaluate(() => window.__getAnalyticsLogs?.() ?? [])).toEqual([
+      { type: "pageview", url: "/index.html?view=setup" },
+      { type: "pageview", url: "/index.html?view=workout" },
+      {
+        type: "event",
+        name: "workout_started",
+        data: {
+          mode: "finite",
+          theme: "plain",
+          auto_draw: false,
+          auto_interval_seconds: 150,
+          has_room: false,
+          hearts_multiplier: 1,
+          spades_multiplier: 1,
+          diamonds_multiplier: 1,
+          clubs_multiplier: 2,
+        },
+      },
+    ]);
   });
 
   test("tracks workout lifecycle events with low-cardinality properties", async ({
@@ -1660,7 +1691,101 @@ test.describe("Deck of Gains app", () => {
 
     expect(state.deckSize).toBe(0);
     expect(state.drawButtonDisplay).toBe("none");
-    expect(state.newSetLabel).toBe("New Set");
+    expect(state.newSetLabel).toBe("👍 Thumbs up");
+    await expect(page.getByRole("button", { name: "New Set" })).toHaveCount(0);
+  });
+
+  test("collects feedback once after the final draw and suppresses it for three months", async ({
+    page,
+  }) => {
+    await startWorkoutWithOptions(page);
+    await setDeck(page, [
+      { suit: "hearts", number: 2 },
+      { suit: "spades", number: 3 },
+      { suit: "diamonds", number: 4 },
+      { suit: "clubs", number: 5 },
+    ]);
+
+    await withPatchedRandom(page, 0, async () => {
+      await page.evaluate(() => drawCards());
+    });
+
+    const feedback = page.locator("#workout-feedback");
+    await expect(feedback).toBeVisible();
+    await expect(feedback).toContainText("What do you think of Deck of Gains?");
+    await expect(feedback.locator("#feedback-text")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "New Set" })).toHaveCount(0);
+    expect(
+      await page.locator("#feedback-skip").evaluate((element) => ({
+        backgroundColor: getComputedStyle(element).backgroundColor,
+        backgroundImage: getComputedStyle(element).backgroundImage,
+      })),
+    ).toEqual({
+      backgroundColor: "rgba(0, 0, 0, 0)",
+      backgroundImage: "none",
+    });
+
+    await page.click("#feedback-thumbs-up");
+    await expect(feedback.locator("#feedback-text")).toBeVisible();
+    await page.fill("#feedback-text", "The final sprint is a great touch.");
+    await page.click("#feedback-submit");
+    await expect(feedback).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "New Set" })).toBeVisible();
+
+    const events = await getAnalyticsCalls(page);
+    expect(events.filter((call) => call.name === "app_feedback_rated")).toEqual([
+      {
+        type: "event",
+        name: "app_feedback_rated",
+        data: { rating: "up" },
+      },
+    ]);
+    expect(events.filter((call) => call.name === "app_feedback_submitted")).toEqual([
+      {
+        type: "event",
+        name: "app_feedback_submitted",
+        data: {
+          rating: "up",
+          feedback: "The final sprint is a great touch.",
+        },
+      },
+    ]);
+    expect(
+      await page.evaluate(() => document.cookie.includes("deckOfGainsFeedback=")),
+    ).toBe(true);
+
+    await page.goto(baseUrl);
+    await startWorkoutWithOptions(page);
+    await setDeck(page, [{ suit: "hearts", number: 2 }]);
+    await withPatchedRandom(page, 0, async () => {
+      await page.evaluate(() => drawCards());
+    });
+    await expect(page.locator("#workout-feedback")).toHaveCount(0);
+  });
+
+  test("allows canceling written feedback without covering mobile workout content", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await startWorkoutWithOptions(page);
+    await setDeck(page, [{ suit: "hearts", number: 2 }]);
+
+    await withPatchedRandom(page, 0, async () => {
+      await page.evaluate(() => drawCards());
+    });
+
+    const feedback = page.locator("#workout-feedback");
+    await expect(feedback).toBeVisible();
+    expect(await feedback.evaluate((element) => getComputedStyle(element).position)).toBe(
+      "static",
+    );
+
+    await page.click("#feedback-thumbs-down");
+    await expect(page.locator("#feedback-cancel")).toBeVisible();
+    await page.click("#feedback-cancel");
+
+    await expect(feedback).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "New Set" })).toBeVisible();
   });
 
   test("the New Set button preserves the current configuration for reuse", async ({
@@ -1689,6 +1814,8 @@ test.describe("Deck of Gains app", () => {
         drawCards();
       });
     });
+
+    await page.click("#feedback-skip");
 
     await Promise.all([
       page.waitForNavigation(),
@@ -1821,6 +1948,8 @@ test.describe("Deck of Gains app", () => {
         drawCards();
       });
     });
+
+    await page.click("#feedback-skip");
 
     await expect(
       page.locator('#instructions button:has-text("New Set")'),
@@ -2171,6 +2300,9 @@ test.describe("Deck of Gains app", () => {
     page,
   }) => {
     await page.setViewportSize({ width: 390, height: 844 });
+    await page.evaluate(() => {
+      document.cookie = "deckOfGainsFeedback=1; Path=/; SameSite=Lax";
+    });
 
     await startWorkoutWithOptions(page, {
       theme: "plain",

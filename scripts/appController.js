@@ -48,6 +48,11 @@ import {
 } from "./workoutView.js";
 import { playDrawSound } from "./audio.js";
 import { checkSyncHealth, createRoomSync } from "./syncClient.js";
+import {
+  createFeedbackPrompt,
+  hasSubmittedFeedback,
+  rememberFeedbackSubmission,
+} from "./feedbackPrompt.js";
 
 import Analytics from "./analytics.js";
 
@@ -364,11 +369,27 @@ function renderWorkoutFromState(state) {
   renderWorkoutView({
     appendNewSetButton,
     calculateTotals,
+    createFeedbackPrompt: ({ onDismiss }) =>
+      createFeedbackPrompt({
+        onDismiss,
+        onRating: (data) => {
+          rememberFeedbackSubmission();
+          void Analytics.feedbackRated(data);
+        },
+        onSubmit: (data) => {
+          rememberFeedbackSubmission();
+          void Analytics.feedbackSubmitted(data);
+        },
+        onSkip: () => {
+          rememberFeedbackSubmission();
+        },
+      }),
     createCardElement,
     drawButtonDefaultLabel: DRAW_BUTTON_DEFAULT_LABEL,
     hasActiveCountdown: () => autoDrawController.hasActiveCountdown(),
     refreshDrawButtonLabel: () => autoDrawController.refreshDrawButtonLabel(),
     state,
+    shouldShowFeedback: () => !hasSubmittedFeedback(),
     totalRounds,
   });
 }
@@ -434,10 +455,7 @@ export function drawCards({ trigger = "manual" } = {}) {
 
   const stateAfterDraw = getState();
   const totals = calculateTotals(drawnCards, stateBeforeDraw.configuration);
-  const repTotal = Object.values(totals).reduce(
-    (sum, value) => sum + value,
-    0,
-  );
+  const repTotal = Object.values(totals).reduce((sum, value) => sum + value, 0);
   const finalDraw =
     !stateBeforeDraw.configuration.endless && stateAfterDraw.deck.length === 0;
 

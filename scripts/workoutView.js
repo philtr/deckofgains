@@ -170,11 +170,13 @@ export function updateRoundTitle({ state, totalRounds }) {
 export function renderWorkoutFromState({
   appendNewSetButton,
   calculateTotals,
+  createFeedbackPrompt,
   createCardElement,
   drawButtonDefaultLabel,
   hasActiveCountdown,
   refreshDrawButtonLabel,
   state,
+  shouldShowFeedback,
   totalRounds,
 }) {
   showWorkoutScreen();
@@ -220,7 +222,17 @@ export function renderWorkoutFromState({
         instructionsDiv,
         "Complete 2 sprints of 50 yards each.",
       );
-      appendNewSetButton(instructionsDiv);
+      if (shouldShowFeedback()) {
+        const feedbackPrompt = createFeedbackPrompt({
+          onDismiss: () => {
+            feedbackPrompt.remove();
+            appendNewSetButton(instructionsDiv);
+          },
+        });
+        instructionsDiv.appendChild(feedbackPrompt);
+      } else {
+        appendNewSetButton(instructionsDiv);
+      }
     }
   }
 
