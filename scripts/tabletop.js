@@ -1,19 +1,10 @@
 import * as THREE from "three";
 import { tabletopThemes } from "./theme.js";
-import { getCardDisplayValue } from "./game.mjs";
+import { createSurfacePixels, drawCardFace } from "./tabletopArtwork.mjs";
 
-const symbols = { hearts: "♥", spades: "♠", diamonds: "♦", clubs: "♣" };
 const cardWidth = 1.45;
 const cardHeight = 2.05;
 
-// Visual noise uses an independent deterministic source, never gameplay randomness.
-function noise(seed) {
-  let value = seed;
-  return () => {
-    value = (value * 1664525 + 1013904223) >>> 0;
-    return value / 4294967296;
-  };
-}
 function canvasTexture(draw, width = 384, height = 544) {
   const canvas = document.createElement("canvas");
   canvas.width = width;
@@ -81,8 +72,8 @@ export function createTabletop({ container, dispatch, onFailure }) {
     ownedTextures.add(texture);
     return texture;
   };
-  const material = (settings) => {
-    const value = new THREE.MeshStandardMaterial(settings);
+  const material = (settings, Material = THREE.MeshStandardMaterial) => {
+    const value = new Material(settings);
     ownedMaterials.add(value);
     return value;
   };
@@ -147,124 +138,13 @@ export function createTabletop({ container, dispatch, onFailure }) {
     const key = `${card.suit}-${card.number}`;
     if (faceMaterials.has(key)) return faceMaterials.get(key);
     const texture = ownTexture(
-      canvasTexture((ctx, w, h) => {
-        ctx.fillStyle = "#fffdf5";
-        ctx.fillRect(0, 0, w, h);
-        ctx.strokeStyle = "#dad3c5";
-        ctx.lineWidth = 3;
-        ctx.strokeRect(12, 12, w - 24, h - 24);
-        ctx.fillStyle =
-          card.suit === "hearts" || card.suit === "diamonds"
-            ? "#b72733"
-            : "#192634";
-        const value = getCardDisplayValue(card.number);
-        function corner() {
-          ctx.textAlign = "center";
-          ctx.font = "bold 58px Georgia";
-          ctx.fillText(value, 49, 76);
-          ctx.font = "46px Georgia";
-          ctx.fillText(symbols[card.suit], 49, 123);
-        }
-        corner();
-        ctx.save();
-        ctx.translate(w, h);
-        ctx.rotate(Math.PI);
-        corner();
-        ctx.restore();
-        ctx.textAlign = "center";
-        const layouts = {
-          2: [
-            [0, -1],
-            [0, 1],
-          ],
-          3: [
-            [0, -1],
-            [0, 0],
-            [0, 1],
-          ],
-          4: [
-            [-1, -1],
-            [1, -1],
-            [-1, 1],
-            [1, 1],
-          ],
-          5: [
-            [-1, -1],
-            [1, -1],
-            [0, 0],
-            [-1, 1],
-            [1, 1],
-          ],
-          6: [
-            [-1, -1],
-            [1, -1],
-            [-1, 0],
-            [1, 0],
-            [-1, 1],
-            [1, 1],
-          ],
-          7: [
-            [-1, -1],
-            [1, -1],
-            [0, -0.5],
-            [-1, 0],
-            [1, 0],
-            [-1, 1],
-            [1, 1],
-          ],
-          8: [
-            [-1, -1],
-            [1, -1],
-            [0, -0.5],
-            [-1, 0],
-            [1, 0],
-            [0, 0.5],
-            [-1, 1],
-            [1, 1],
-          ],
-          9: [
-            [-1, -1],
-            [1, -1],
-            [-1, -0.33],
-            [1, -0.33],
-            [0, 0],
-            [-1, 0.33],
-            [1, 0.33],
-            [-1, 1],
-            [1, 1],
-          ],
-          10: [
-            [-1, -1],
-            [1, -1],
-            [0, -0.65],
-            [-1, -0.33],
-            [1, -0.33],
-            [-1, 0.33],
-            [1, 0.33],
-            [0, 0.65],
-            [-1, 1],
-            [1, 1],
-          ],
-        };
-        if (layouts[card.number]) {
-          ctx.font = "66px Georgia";
-          for (const [x, y] of layouts[card.number]) {
-            ctx.save();
-            ctx.translate(w / 2 + x * 76, h / 2 + y * 148);
-            if (y > 0) ctx.rotate(Math.PI);
-            ctx.fillText(symbols[card.suit], 0, 22);
-            ctx.restore();
-          }
-        } else {
-          ctx.font = "bold 112px Georgia";
-          ctx.fillText(value, w / 2, h / 2 - 5);
-          ctx.font = "100px Georgia";
-          ctx.fillText(symbols[card.suit], w / 2, h / 2 + 110);
-        }
-      }),
+      canvasTexture((ctx, w, h) => drawCardFace(ctx, w, h, card)),
     );
     texture.anisotropy = Math.min(renderer.capabilities.getMaxAnisotropy(), 8);
-    const mat = material({ map: texture, roughness: 0.68 });
+    const mat = material(
+      { map: texture, toneMapped: false },
+      THREE.MeshBasicMaterial,
+    );
     faceMaterials.set(key, mat);
     return mat;
   }
@@ -279,16 +159,9 @@ export function createTabletop({ container, dispatch, onFailure }) {
     surfaceMaterial.map = ownTexture(
       canvasTexture(
         (ctx, w, h) => {
-          const random = noise(42);
-          ctx.fillStyle = palette.surface;
-          ctx.fillRect(0, 0, w, h);
-          ctx.fillStyle = palette.grain;
-          for (let i = 0; i < 12000; i++) {
-            ctx.globalAlpha = 0.15 + random() * 0.25;
-            const x = random() * w,
-              y = random() * h;
-            ctx.fillRect(x, y, theme === "rugged" ? 20 + random() * 100 : 1, 1);
-          }
+          const image = ctx.createImageData(w, h);
+          image.data.set(createSurfacePixels(theme, palette, w));
+          ctx.putImageData(image, 0, 0);
         },
         512,
         512,

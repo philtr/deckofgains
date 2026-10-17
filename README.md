@@ -6,7 +6,7 @@ The casino theme is the default and is applied on the first render, while saved 
 
 The **3D table** is the default workout view. Use the **View** selector on setup or during a workout to switch to **Classic**, the original card layout. Switching keeps the same hand, progress, countdown, and group connection. The choice is remembered on this device under `deckOfGains:presentation`; shared links and room updates do not change it.
 
-The 3D table includes themed surfaces, a shrinking deck, discard stack, and animated deals. Tap the deck or use **Draw Cards**. All exercise totals and controls remain accessible HTML. Reduced-motion preferences disable dealing animations. If 3D cannot load or the graphics context is lost, the workout continues in Classic automatically without changing your saved preference.
+The 3D table includes seamless themed surfaces, a shrinking deck, discard stack, and animated deals. Cards use jumbo corner indices and large central ranks and suits with consistent contrast across all themes. Tap the deck or use **Draw Cards**. All exercise totals and controls remain accessible HTML. Reduced-motion preferences disable dealing animations. If 3D cannot load or the graphics context is lost, the workout continues in Classic automatically without changing your saved preference.
 
 **NOTE:** Almost everything you see here is AI-generated. I make no guarantees of code quality or correctness!
 
