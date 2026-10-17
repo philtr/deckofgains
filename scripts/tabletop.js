@@ -1,3 +1,4 @@
+import { createForgeFlames } from "./forgeFlames.js";
 import { sampleForgeFire } from "./forgeFire.mjs";
 import * as THREE from "three";
 import { tabletopThemes } from "./theme.js";
@@ -60,6 +61,7 @@ export function createTabletop({ container, dispatch, onFailure }) {
     if (model?.canDraw) dispatch({ type: "DRAW" });
   });
   container.append(deckTarget);
+  const flames = createForgeFlames();
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 100);
   const ambient = new THREE.HemisphereLight("#ffffff", "#51463c", 2.0);
@@ -401,15 +403,6 @@ export function createTabletop({ container, dispatch, onFailure }) {
     const active = fireActive();
     container.dataset.fireActive = String(active);
     const fire = sampleForgeFire(active ? now / 1000 : 0);
-    container.style.setProperty("--forge-fire-opacity", String(fire.opacity));
-    container.style.setProperty(
-      "--forge-fire-scale",
-      String(active ? fire.scale : 1),
-    );
-    container.style.setProperty(
-      "--forge-fire-drift",
-      `${active ? fire.drift : 0}px`,
-    );
     const frontRow = Math.max(
       1.2,
       ...cards.map((card) => card.userData.target.z),
@@ -427,6 +420,24 @@ export function createTabletop({ container, dispatch, onFailure }) {
     pose(elapsed);
     updateFire(now);
     renderer.render(scene, camera);
+    if (theme === "rugged") {
+      const fire = sampleForgeFire(fireActive() ? now / 1000 : 0);
+      // Keep the flame and ember envelope below the projected card bounds,
+      // including the tightly framed portrait fullscreen layout.
+      let lowest = 1;
+      for (const card of cards) {
+        const box = new THREE.Box3().setFromObject(card);
+        for (const x of [box.min.x, box.max.x])
+          for (const y of [box.min.y, box.max.y])
+            for (const z of [box.min.z, box.max.z])
+              lowest = Math.min(lowest, new THREE.Vector3(x, y, z).project(camera).y);
+      }
+      const clearance = (lowest + 1) * container.clientHeight / 2;
+      flames.render(
+        renderer, container.clientWidth, container.clientHeight,
+        now / 1000, reducedMotion.matches, fire.opacity, clearance,
+      );
+    }
     const active =
       animationStart !== null &&
       elapsed < 0.6 + Math.max(0, cards.length - 1) * 0.1 &&
@@ -514,12 +525,7 @@ export function createTabletop({ container, dispatch, onFailure }) {
       disposed = true;
       cancelRender();
       container.dataset.fireActive = "false";
-      for (const property of [
-        "--forge-fire-opacity",
-        "--forge-fire-scale",
-        "--forge-fire-drift",
-      ])
-        container.style.removeProperty(property);
+      flames.dispose();
       observer.disconnect();
       document.removeEventListener("visibilitychange", visibility);
       reducedMotion.removeEventListener("change", motionChanged);

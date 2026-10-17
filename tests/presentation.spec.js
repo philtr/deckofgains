@@ -334,6 +334,12 @@ test("legacy theme aliases and minute intervals survive migration", async ({
 test("rugged fire flickers on card faces and stops for reduced motion, hidden pages, and Classic", async ({
   page,
 }) => {
+  const graphicsErrors = [];
+  page.on("pageerror", error => graphicsErrors.push(error.message));
+  page.on("console", message => {
+    if (message.type() === "error" && /THREE|shader|WebGL/i.test(message.text()))
+      graphicsErrors.push(message.text());
+  });
   await page.setViewportSize({ width: 1366, height: 900 });
   await page.addInitScript(() => {
     window.__renderFrames = 0;
@@ -370,10 +376,19 @@ test("rugged fire flickers on card faces and stops for reduced motion, hidden pa
     width: 8,
     height: 8,
   };
+  const rimClip = {
+    x: bounds.x + bounds.width * 0.2,
+    y: bounds.y + bounds.height - 24,
+    width: 80,
+    height: 20,
+  };
+  const rimBefore = await page.screenshot({ clip: rimClip });
   const before = await page.screenshot({ clip });
   await page.waitForTimeout(240);
   const after = await page.screenshot({ clip });
   expect(before.equals(after)).toBe(false);
+  expect(rimBefore.equals(await page.screenshot({ clip: rimClip }))).toBe(false);
+  expect(graphicsErrors).toEqual([]);
   expect(
     await page.evaluate(() => ({
       deck,

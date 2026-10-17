@@ -31,7 +31,7 @@ You think you’re hardcore? You’re not rugged enough until you hit **Deck of 
 Here’s what the **Rugged Theme** brings:
 
 - A dark, smoky background to remind you of the battlefield of gains.
-- In 3D, scarred, hammered gunmetal with surface relief, a riveted steel frame, flickering fire along the lower rim that casts warm, changing light on the cards and steel, and scorched steel card backs bearing a crossed hammer and pick above the full “DECK of GAINS” name. Jumbo card faces keep their clear contrast. Fire and lighting share a clock, pause while the page is hidden, and remain steady with reduced motion. Only the rugged scene renders continuously for fire; other themes render on demand.
+- In 3D, scarred, hammered gunmetal with surface relief, a riveted steel frame, flowing procedural flames and occasional rising sparks along the lower rim that cast warm, changing light on the cards and steel, and scorched steel card backs bearing a crossed hammer and pick above the full “DECK of GAINS” name. Jumbo card faces keep their clear contrast. Fire and lighting share a clock, pause while the page is hidden, and remain steady without sparks with reduced motion. Only the rugged scene renders continuously for fire; other themes render on demand.
 - Fiery orange and gold highlights that scream, "I EAT BURPEES FOR BREAKFAST."
 - Hover effects on cards so epic they might just make you flex involuntarily.
 - `Tektur` for rugged display elements like headings, buttons, cards, and rep counts.
