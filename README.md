@@ -29,6 +29,7 @@ You think you’re hardcore? You’re not rugged enough until you hit **Deck of 
 Here’s what the **Rugged Theme** brings:
 
 - A dark, smoky background to remind you of the battlefield of gains.
+- In 3D, scarred timber with knots and raised grain, warm low lighting, an iron corner frame, and scuffed leather card backs stamped with crossed axes. Jumbo card faces keep their clear contrast.
 - Fiery orange and gold highlights that scream, "I EAT BURPEES FOR BREAKFAST."
 - Hover effects on cards so epic they might just make you flex involuntarily.
 - `Tektur` for rugged display elements like headings, buttons, cards, and rep counts.

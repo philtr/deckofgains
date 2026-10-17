@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 import {
   createSurfacePixels,
   drawCardFace,
+  createRuggedReliefPixels,
+  drawCardBack,
 } from "../../scripts/tabletopArtwork.mjs";
 
 const palette = { surface: "#493124", grain: "#211b17" };
@@ -56,4 +58,52 @@ test("every card has a prominent central rank and suit plus jumbo corner indices
       );
     }
   }
+});
+
+test("rugged timber includes deep wear and raised grain without losing seamless edges", () => {
+  const size = 128;
+  const pixels = createSurfacePixels(
+    "rugged",
+    { surface: "#59402e", grain: "#0f0d0a" },
+    size,
+  );
+  const red = [...pixels].filter((value, index) => index % 4 === 0);
+  assert.ok(
+    Math.max(...red) - Math.min(...red) > 70,
+    "timber should include deep gouges and worn highlights",
+  );
+});
+
+test("rugged relief repeats seamlessly and leather backs retain a large readable stamp", () => {
+  const size = 64;
+  const pixels = createRuggedReliefPixels(size);
+  for (let i = 0; i < size; i++) {
+    assert.deepEqual(
+      pixels.slice(i * size * 4, i * size * 4 + 4),
+      pixels.slice((i * size + size - 1) * 4, (i * size + size - 1) * 4 + 4),
+    );
+    assert.deepEqual(
+      pixels.slice(i * 4, i * 4 + 4),
+      pixels.slice(
+        ((size - 1) * size + i) * 4,
+        ((size - 1) * size + i) * 4 + 4,
+      ),
+    );
+  }
+  const text = [];
+  const ctx = new Proxy(
+    {
+      fillText(value) {
+        text.push(value);
+      },
+    },
+    {
+      get(target, key) {
+        return key in target ? target[key] : () => {};
+      },
+    },
+  );
+  drawCardBack(ctx, 384, 544, "rugged", { back: "#30231d", ink: "#bc9365" });
+  assert.ok(text.includes("DECK"));
+  assert.ok(text.includes("GAINS"));
 });

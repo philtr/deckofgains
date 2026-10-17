@@ -1,6 +1,11 @@
 import * as THREE from "three";
 import { tabletopThemes } from "./theme.js";
-import { createSurfacePixels, drawCardFace } from "./tabletopArtwork.mjs";
+import {
+  createSurfacePixels,
+  createRuggedReliefPixels,
+  drawCardFace,
+  drawCardBack,
+} from "./tabletopArtwork.mjs";
 
 const cardWidth = 1.45;
 const cardHeight = 2.05;
@@ -170,12 +175,36 @@ export function createTabletop({ container, dispatch, onFailure }) {
     surfaceMaterial.map.wrapS = surfaceMaterial.map.wrapT =
       THREE.RepeatWrapping;
     surfaceMaterial.map.repeat.set(20, 20);
+    if (surfaceMaterial.bumpMap) {
+      surfaceMaterial.bumpMap.dispose();
+      ownedTextures.delete(surfaceMaterial.bumpMap);
+      surfaceMaterial.bumpMap = null;
+    }
+    if (theme === "rugged") {
+      surfaceMaterial.bumpMap = ownTexture(
+        canvasTexture(
+          (ctx, w, h) => {
+            const image = ctx.createImageData(w, h);
+            image.data.set(createRuggedReliefPixels(w));
+            ctx.putImageData(image, 0, 0);
+          },
+          512,
+          512,
+        ),
+      );
+      surfaceMaterial.bumpMap.colorSpace = THREE.NoColorSpace;
+      surfaceMaterial.bumpMap.wrapS = surfaceMaterial.bumpMap.wrapT =
+        THREE.RepeatWrapping;
+      surfaceMaterial.bumpMap.repeat.set(20, 20);
+    }
+    surfaceMaterial.bumpScale = theme === "rugged" ? 0.035 : 0;
     surfaceMaterial.roughness = palette.roughness;
     surfaceMaterial.needsUpdate = true;
     light.color.set(palette.light);
     light.intensity = theme === "plain" ? 2 : 3;
-    ambient.intensity = theme === "plain" ? 1.25 : 2;
-    renderer.toneMappingExposure = theme === "plain" ? 0.9 : 1.25;
+    ambient.intensity = theme === "rugged" ? 0.9 : theme === "plain" ? 1.25 : 2;
+    renderer.toneMappingExposure =
+      theme === "rugged" ? 1.05 : theme === "plain" ? 0.9 : 1.25;
     scene.background = new THREE.Color(palette.surface);
     if (backMaterial) {
       backMaterial.map.dispose();
@@ -187,23 +216,7 @@ export function createTabletop({ container, dispatch, onFailure }) {
       roughness: 0.75,
       map: ownTexture(
         canvasTexture((ctx, w, h) => {
-          ctx.fillStyle = "#f8f1df";
-          ctx.fillRect(0, 0, w, h);
-          ctx.fillStyle = palette.back;
-          ctx.fillRect(16, 16, w - 32, h - 32);
-          ctx.strokeStyle = palette.ink;
-          ctx.lineWidth = 2;
-          for (let y = 36; y < h - 28; y += 24)
-            for (let x = 34; x < w - 28; x += 24) {
-              ctx.beginPath();
-              ctx.moveTo(x, y - 8);
-              ctx.lineTo(x + 8, y);
-              ctx.lineTo(x, y + 8);
-              ctx.lineTo(x - 8, y);
-              ctx.closePath();
-              ctx.stroke();
-            }
-          ctx.strokeRect(28, 28, w - 56, h - 56);
+          drawCardBack(ctx, w, h, theme, palette);
         }),
       ),
     });

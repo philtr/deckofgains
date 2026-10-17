@@ -20,7 +20,7 @@ for (const theme of ["casino", "plain", "rugged"]) {
     ).toHaveValue("three");
     await page.click("#start-workout");
     await expect(page.locator("#tabletop canvas")).toBeVisible();
-    if (theme === "casino") {
+    if (theme === "casino" || theme === "rugged") {
       const canvas = page.locator("#tabletop canvas");
       const bounds = await canvas.boundingBox();
       await canvas.click({
