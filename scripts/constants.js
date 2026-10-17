@@ -31,6 +31,7 @@ export const presentationModes = ["three", "classic"];
 export const defaultPresentation = "three";
 export const tabletopThemes = {
   casino: {
+    fullscreenBackground: "#0b2b22",
     surface: "#154e3e",
     grain: "#25705a",
     back: "#193c65",
@@ -39,6 +40,7 @@ export const tabletopThemes = {
     roughness: 0.95,
   },
   plain: {
+    fullscreenBackground: "#eeeae4",
     surface: "#e5e1d8",
     grain: "#d4cfc2",
     back: "#49596a",
@@ -47,6 +49,7 @@ export const tabletopThemes = {
     roughness: 1,
   },
   rugged: {
+    fullscreenBackground: "#0c1118",
     surface: "#414b56",
     grain: "#0b0e12",
     back: "#111820",

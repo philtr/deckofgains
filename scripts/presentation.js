@@ -1,3 +1,4 @@
+import { createFullscreenController } from "./fullscreen.js";
 import { defaultPresentation, presentationModes } from "./constants.js";
 
 const preferenceKey = "deckOfGains:presentation";
@@ -18,6 +19,7 @@ export function createPresentationController({ dispatch }) {
   let table;
   let notice;
   const controls = [];
+  const fullscreen = createFullscreenController(document.getElementById("app"));
 
   function dispose() {
     generation++;
@@ -48,6 +50,7 @@ export function createPresentationController({ dispatch }) {
     update(model, { ...options, animate: false, events: [] });
   }
   function mount() {
+    fullscreen.mount();
     notice = document.createElement("p");
     notice.id = "presentation-notice";
     notice.className = "presentation-notice";
@@ -70,7 +73,7 @@ export function createPresentationController({ dispatch }) {
     }
     table = document.createElement("div");
     table.id = "tabletop";
-    table.setAttribute("role", "img");
+    table.setAttribute("role", "group");
     table.setAttribute("aria-label", "Workout card table");
     document.getElementById("workout-grid").prepend(table);
     document.getElementById("rep-summary").setAttribute("aria-live", "polite");
@@ -80,6 +83,7 @@ export function createPresentationController({ dispatch }) {
     model = nextModel;
     options = nextOptions;
     if (!table || !model) return;
+    fullscreen.update(model);
     if (!model.started || selected !== "three" || failed) {
       if (renderer || loading) dispose();
       document.body.dataset.presentation = "classic";

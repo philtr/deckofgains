@@ -422,3 +422,133 @@ test("rugged fire flickers on card faces and stops for reduced motion, hidden pa
   await page.waitForTimeout(150);
   expect(await page.evaluate(() => window.__renderFrames)).toBe(classicFrames);
 });
+
+for (const theme of ["casino", "plain", "rugged"]) {
+  test(`fullscreen phone layout keeps reps below the table and deck taps draw in ${theme}`, async ({
+    page,
+  }) => {
+    await page.addInitScript(() => {
+      Element.prototype.requestFullscreen = () =>
+        Promise.reject(new Error("Fullscreen unavailable"));
+    });
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(`/#theme=${theme}`);
+    await page.click("#start-workout");
+    await expect(page.locator("#tabletop canvas")).toBeVisible();
+    const before = await page.evaluate(() => ({
+      deck,
+      roundNumber,
+      hash: location.hash,
+    }));
+    await page
+      .getByRole("button", { name: "Full screen", exact: true })
+      .click();
+    await expect(page.locator("#app")).toHaveClass(/is-fullscreen/);
+    expect(
+      await page.evaluate(() => ({ deck, roundNumber, hash: location.hash })),
+    ).toEqual(before);
+    await expect(page.locator("#rep-summary .rep-summary-count")).toHaveCount(
+      4,
+    );
+    await page
+      .getByRole("button", { name: "Draw from deck", exact: true })
+      .click();
+    expect(await page.evaluate(() => deck.length)).toBe(48);
+    const boxes = await page.locator(".rep-summary-item").evaluateAll((items) =>
+      items.map((item) => {
+        const r = item.getBoundingClientRect();
+        return { top: r.top, bottom: r.bottom, left: r.left, right: r.right };
+      }),
+    );
+    expect(
+      Math.max(...boxes.map((b) => b.top)) -
+        Math.min(...boxes.map((b) => b.top)),
+    ).toBeLessThan(2);
+    expect(boxes[3].right).toBeLessThanOrEqual(390);
+    expect(boxes[0].bottom).toBeGreaterThan(800);
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true);
+    const table = await page.locator("#tabletop").boundingBox();
+    expect(table.y + table.height).toBeLessThanOrEqual(boxes[0].top);
+    const drawn = await page.evaluate(() => ({
+      deck,
+      lastDrawn,
+      roundNumber,
+      hash: location.hash,
+    }));
+    await page.setViewportSize({ width: 844, height: 390 });
+    await expect(page.locator("#tabletop canvas")).toBeVisible();
+    await page
+      .getByRole("button", { name: "Exit full screen", exact: true })
+      .click();
+    await expect(page.locator("#app")).not.toHaveClass(/is-fullscreen/);
+    expect(
+      await page.evaluate(() => ({
+        deck,
+        lastDrawn,
+        roundNumber,
+        hash: location.hash,
+      })),
+    ).toEqual(drawn);
+  });
+}
+
+test("native fullscreen, Escape, final hand and feedback exit preserve the workout", async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/#theme=plain");
+  await page.click("#start-workout");
+  await expect(page.locator("#tabletop canvas")).toBeVisible();
+  await page.getByRole("button", { name: "Full screen", exact: true }).click();
+  await expect
+    .poll(() => page.evaluate(() => document.fullscreenElement?.id))
+    .toBe("app");
+  await page.keyboard.press("Escape");
+  await expect(page.locator("#app")).not.toHaveClass(/is-fullscreen/);
+  await page.getByRole("button", { name: "Full screen", exact: true }).click();
+  await page.evaluate(() => {
+    deck = deck.slice(0, 8);
+    drawCards();
+  });
+  await expect(page.locator("#tabletop")).toHaveAttribute(
+    "data-card-count",
+    "8",
+  );
+  await expect(
+    page.getByRole("button", { name: "Draw from deck", exact: true }),
+  ).toBeHidden();
+  await expect(page.locator("#workout-feedback")).toBeHidden();
+  await page
+    .getByRole("button", { name: "Finish workout", exact: true })
+    .click();
+  await expect(page.locator("#workout-feedback")).toBeVisible();
+  expect(await page.evaluate(() => lastDrawn.length)).toBe(8);
+});
+
+test("Classic fullscreen retains keyboard drawing and bottom rep counts", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    localStorage.setItem("deckOfGains:presentation", "classic");
+    Element.prototype.requestFullscreen = undefined;
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/#theme=plain");
+  await page.click("#start-workout");
+  await page.click("#fullscreen-toggle");
+  await page.click("#draw-button");
+  await expect(page.locator("#drawn-cards .card")).toHaveCount(4);
+  const counts = await page
+    .locator(".rep-summary-item")
+    .evaluateAll((items) =>
+      items.map((item) => item.getBoundingClientRect().top),
+    );
+  expect(Math.max(...counts) - Math.min(...counts)).toBeLessThan(2);
+  await page.keyboard.press("Escape");
+  await expect(page.locator("#app")).not.toHaveClass(/is-fullscreen/);
+});

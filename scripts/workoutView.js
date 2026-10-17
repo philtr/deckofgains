@@ -210,7 +210,7 @@ export function renderWorkoutFromState({
     });
   }
 
-  if (repSummaryDiv && cards.length > 0) {
+  if (repSummaryDiv) {
     const totals = viewModel.totals;
     renderTotalsParagraphs(repSummaryDiv, totals);
   }

@@ -1,5 +1,5 @@
 import { readUrlState } from "./urlState.js";
-import { defaultTheme, supportedThemes } from "./constants.js";
+import { defaultTheme, supportedThemes, tabletopThemes } from "./constants.js";
 
 export function resolveTheme(themeCandidate) {
   const normalized = (themeCandidate ?? "").toLowerCase();
@@ -32,7 +32,11 @@ export function deriveInitialTheme(searchParams) {
 export function applyTheme(themeCandidate) {
   const theme = resolveTheme(themeCandidate);
   document.body.dataset.theme = theme;
+  document.body.style.setProperty(
+    "--fullscreen-background",
+    tabletopThemes[theme].fullscreenBackground,
+  );
   return theme;
 }
 
-export { tabletopThemes } from "./constants.js";
+export { tabletopThemes };

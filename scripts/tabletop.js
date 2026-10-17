@@ -51,6 +51,15 @@ export function createTabletop({ container, dispatch, onFailure }) {
   renderer.toneMappingExposure = 1.25;
   renderer.domElement.setAttribute("aria-hidden", "true");
   container.append(renderer.domElement);
+  const deckTarget = document.createElement("button");
+  deckTarget.type = "button";
+  deckTarget.className = "deck-draw-target";
+  deckTarget.setAttribute("aria-label", "Draw from deck");
+  deckTarget.title = "Tap the deck to draw";
+  deckTarget.addEventListener("click", () => {
+    if (model?.canDraw) dispatch({ type: "DRAW" });
+  });
+  container.append(deckTarget);
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 100);
   const ambient = new THREE.HemisphereLight("#ffffff", "#51463c", 2.0);
@@ -249,18 +258,39 @@ export function createTabletop({ container, dispatch, onFailure }) {
     deckMeshes = [];
     discardMeshes = [];
   }
+  function immersiveShape() {
+    if (!container.closest("#app")?.classList.contains("is-fullscreen"))
+      return "normal";
+    const ratio = container.clientWidth / Math.max(1, container.clientHeight);
+    return ratio >= 1.8 ? "wide" : ratio < 0.85 ? "tall" : "normal";
+  }
+  function columns() {
+    return immersiveShape() === "wide" ||
+      (model.cards.length > 4 && container.clientWidth >= 600)
+      ? 4
+      : 2;
+  }
+  function stackX() {
+    return immersiveShape() === "wide"
+      ? 4.4
+      : immersiveShape() === "tall"
+        ? 0.875
+        : 2.7;
+  }
   function stackZ() {
-    const columns =
-      model.cards.length > 4 && container.clientWidth >= 600 ? 4 : 2;
-    return model.cards.length > 4 && columns === 4 ? -3.65 : -1.5;
+    if (immersiveShape() === "wide") return 0;
+    if (immersiveShape() === "tall")
+      return (
+        (-Math.ceil((model.cards.length || 4) / columns()) * 2.35) / 2 - 1.2
+      );
+    return model.cards.length > 4 && columns() === 4 ? -3.65 : -1.5;
   }
   function target(index) {
-    const columns =
-      model.cards.length > 4 && container.clientWidth >= 600 ? 4 : 2;
-    const rows = Math.ceil(model.cards.length / columns);
+    const count = columns();
+    const rows = Math.ceil(model.cards.length / count);
     return {
-      x: ((index % columns) - (columns - 1) / 2) * 1.75,
-      z: (Math.floor(index / columns) - (rows - 1) / 2) * 2.35,
+      x: ((index % count) - (count - 1) / 2) * 1.75,
+      z: (Math.floor(index / count) - (rows - 1) / 2) * 2.35,
       angle: Math.sin(index * 7 + 2) * 0.025,
     };
   }
@@ -270,29 +300,69 @@ export function createTabletop({ container, dispatch, onFailure }) {
       height = container.clientHeight || 480;
     renderer.setSize(width, height, false);
     camera.aspect = width / height;
-    const rows = Math.ceil(
-      (model?.cards.length || 4) /
-        (width >= 600 && model?.cards.length > 4 ? 4 : 2),
-    );
-    const extentX = width >= 600 && model?.cards.length > 4 ? 9.5 : 7.0;
-    const extentZ = Math.max(
-      6,
-      rows * 2.4 + (rows === 2 && model?.cards.length > 4 ? 4 : 1.5),
-    );
+    const shape = immersiveShape();
+    const rows = Math.ceil((model?.cards.length || 4) / columns());
+    const extentX =
+      shape === "wide"
+        ? 11
+        : shape === "tall"
+          ? 4.2
+          : width >= 600 && model?.cards.length > 4
+            ? 9.5
+            : 7;
+    const extentZ =
+      shape === "wide"
+        ? Math.max(3.8, rows * 2.35 + 1.4)
+        : shape === "tall"
+          ? rows * 2.35 + 3.1
+          : Math.max(
+              6,
+              rows * 2.4 + (rows === 2 && model?.cards.length > 4 ? 4 : 1.5),
+            );
     const distance =
       Math.max(extentZ, extentX / camera.aspect) /
       (2 * Math.tan(THREE.MathUtils.degToRad(19)));
-    const tilt = width < 600 ? 0.18 : 0.4;
-    camera.position.set(0, distance, distance * tilt);
-    camera.lookAt(0, 0, 0);
+    const tilt = shape !== "normal" || width < 600 ? 0.18 : 0.4;
+    const centerZ = shape === "tall" ? -1.2 : shape === "wide" ? 0.35 : 0;
+    camera.position.set(0, distance, distance * tilt + centerZ);
+    camera.lookAt(0, 0, centerZ);
     camera.updateProjectionMatrix();
     if (model) {
       cards.forEach((card, index) => (card.userData.target = target(index)));
-      [...deckMeshes, ...discardMeshes].forEach(
-        (card) => (card.position.z = stackZ()),
-      );
+      deckMeshes.forEach((card) => {
+        card.position.x = -stackX();
+        card.position.z = stackZ();
+      });
+      discardMeshes.forEach((card) => {
+        card.position.x = stackX();
+        card.position.z = stackZ();
+      });
     }
+    positionDeckTarget();
     requestRender();
+  }
+  function positionDeckTarget() {
+    deckTarget.hidden = !model?.canDraw || deckMeshes.length === 0;
+    if (deckTarget.hidden) return;
+    camera.updateMatrixWorld();
+    const box = new THREE.Box3().setFromObject(deckMeshes.at(-1));
+    const points = [];
+    for (const x of [box.min.x, box.max.x])
+      for (const y of [box.min.y, box.max.y])
+        for (const z of [box.min.z, box.max.z]) {
+          const point = new THREE.Vector3(x, y, z).project(camera);
+          points.push({ x: (point.x + 1) / 2, y: (1 - point.y) / 2 });
+        }
+    const left = Math.min(...points.map((p) => p.x)),
+      right = Math.max(...points.map((p) => p.x));
+    const top = Math.min(...points.map((p) => p.y)),
+      bottom = Math.max(...points.map((p) => p.y));
+    Object.assign(deckTarget.style, {
+      left: `${(left + right) * 50}%`,
+      top: `${(top + bottom) * 50}%`,
+      width: `${Math.max(44, (right - left) * container.clientWidth)}px`,
+      height: `${Math.max(44, (bottom - top) * container.clientHeight)}px`,
+    });
   }
   function pose(progress) {
     cards.forEach((card, index) => {
@@ -302,7 +372,7 @@ export function createTabletop({ container, dispatch, onFailure }) {
         : Math.max(0, Math.min(1, (progress - index * 0.1) / 0.6));
       const eased = 1 - Math.pow(1 - t, 3);
       card.position.set(
-        THREE.MathUtils.lerp(-2.7, dest.x, eased),
+        THREE.MathUtils.lerp(-stackX(), dest.x, eased),
         0.07 + Math.sin(t * Math.PI) * 0.7,
         THREE.MathUtils.lerp(stackZ(), dest.z, eased),
       );
@@ -464,6 +534,7 @@ export function createTabletop({ container, dispatch, onFailure }) {
       renderer.dispose();
       renderer.forceContextLoss();
       renderer.domElement.remove();
+      deckTarget.remove();
     },
   };
 }
