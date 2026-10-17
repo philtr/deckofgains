@@ -1,3 +1,5 @@
+import { selectWorkoutView } from "./game.mjs";
+
 export function createAutoDrawController({
   getState,
   onAutoDraw,
@@ -139,7 +141,7 @@ export function createAutoDrawController({
       return false;
     }
 
-    if (!state.configuration?.endless && state.deck.length === 0) {
+    if (!selectWorkoutView(state).canDraw) {
       return false;
     }
 

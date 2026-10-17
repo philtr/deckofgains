@@ -4,6 +4,12 @@ Welcome to **Deck of Gains**, the app that turns a deck of cards into your perso
 
 The casino theme is the default and is applied on the first render, while saved or URL-selected themes are restored immediately during startup.
 
+The **3D table** is the default workout view. Use the **View** selector on setup or during a workout to switch to **Classic**, the original card layout. Switching keeps the same hand, progress, countdown, and group connection. The choice is remembered on this device under `deckOfGains:presentation`; shared links and room updates do not change it.
+
+Use **Full screen** during a workout for a table that fills the display and four rep counts across the bottom. Tap the deck to draw; the compact **Draw Cards** control also supports keyboard use and shows the auto-draw countdown. **Exit full screen** or Escape returns to the normal layout without changing progress. Browsers that support native fullscreen hide their browser chrome; others use the available viewport. The final hand stays visible until **Finish workout** returns you to feedback and restart controls. Fullscreen is local to the current page and is not saved in shared links or rooms. Classic view also supports fullscreen using the Draw Cards control.
+
+The 3D table includes seamless themed surfaces, a shrinking deck, discard stack, and animated deals. Cards use jumbo corner indices and large central ranks and suits with consistent contrast across all themes. Tap the deck or use **Draw Cards**. All exercise totals and controls remain accessible HTML. Reduced-motion preferences disable dealing animations. If 3D cannot load or the graphics context is lost, the workout continues in Classic automatically without changing your saved preference.
+
 **NOTE:** Almost everything you see here is AI-generated. I make no guarantees of code quality or correctness!
 
 ## What It Does 🎲
@@ -25,6 +31,7 @@ You think you’re hardcore? You’re not rugged enough until you hit **Deck of 
 Here’s what the **Rugged Theme** brings:
 
 - A dark, smoky background to remind you of the battlefield of gains.
+- In 3D, scarred, hammered gunmetal with surface relief, a riveted steel frame, flowing procedural flames and occasional rising sparks along the lower rim that cast warm, changing light on the cards and steel, and scorched steel card backs bearing a crossed hammer and pick above the full “DECK of GAINS” name. Jumbo card faces keep their clear contrast. Fire and lighting share a clock, pause while the page is hidden, and remain steady without sparks with reduced motion. Only the rugged scene renders continuously for fire; other themes render on demand.
 - Fiery orange and gold highlights that scream, "I EAT BURPEES FOR BREAKFAST."
 - Hover effects on cards so epic they might just make you flex involuntarily.
 - `Tektur` for rugged display elements like headings, buttons, cards, and rep counts.
@@ -48,10 +55,22 @@ URL state stays in the browser: fragments are omitted from page requests to the 
 To run it locally with Node:
 
 ```sh
+npm ci
 npm run dev
 ```
 
-Then open `http://127.0.0.1:8000/index.html`.
+Then open `http://127.0.0.1:8000/index.html`. Use Node.js 22 or newer.
+
+Build the static site with `npm run build`, then preview it with `npm run preview`. Deploy the generated `dist/` directory; Netlify runs this build automatically and retains the analytics proxy. Dependencies, including Three.js, are bundled locally; the 3D code loads only when a workout uses that view.
+
+### Architecture and tests
+
+- `scripts/game.mjs` contains pure rules, immutable command transitions, and presentation-neutral selectors. It runs without browser APIs. Commands are `CONFIGURE`, `START`, `DRAW`, and `RESET`; draws require an injected random source.
+- `scripts/gameRuntime.js` adapts the legacy persisted state to game-only configuration and commits engine results. The app controller owns timers, audio, analytics, URL persistence, and networking.
+- Classic and the Three.js table consume the same selected workout data. The renderer can request a draw but cannot change game state. Animation never determines game results; restoration and view switches display the committed state immediately.
+- Theme and auto-draw configuration retain their existing URL and room formats for compatibility. The local presentation choice is separate. No new game or sync-server protocol is introduced.
+
+Run `npm run test:unit` for engine tests. Install browsers with `npx playwright install --with-deps`, then run `npm test` for engine and browser regression coverage. Run `npm run test:production` for view switching, themes, fallback, and responsive checks against the built site.
 
 ## Auto-Draw & Sound FX 🎧
 
@@ -69,7 +88,7 @@ The app stores a random anonymous browser identifier in `localStorage` under `de
 
 Umami also samples session replays and heatmaps. Form inputs are masked, the group-join area is excluded from recording, and recordings are used to diagnose interaction and layout issues. Core Web Vitals are collected to monitor real-world loading, responsiveness, and visual stability.
 
-On Netlify, `/analytics/*` is proxied to the configured Umami service without a build step. During local development, an unavailable Umami client is replaced by a console adapter that logs pageviews and events with the `[Deck of Gains analytics]` prefix. On other hosts, initialization emits one warning and disables tracking when Umami is unavailable.
+On Netlify, `/analytics/*` is proxied to the configured Umami service alongside the built static site. During local development, an unavailable Umami client is replaced by a console adapter that logs pageviews and events with the `[Deck of Gains analytics]` prefix. On other hosts, initialization emits one warning and disables tracking when Umami is unavailable.
 
 ## Why This Exists 🤔
 

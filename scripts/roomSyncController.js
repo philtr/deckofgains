@@ -12,10 +12,7 @@ function normalizeRoomCodeInput(value) {
   return trimmed ? trimmed : null;
 }
 
-export function createRoomSyncController({
-  resolveRoomCode,
-  createRoomSync,
-}) {
+export function createRoomSyncController({ resolveRoomCode, createRoomSync }) {
   let syncSession = null;
   let syncRoomCode = null;
   let syncSuppressOutbound = false;
@@ -153,11 +150,13 @@ export function createRoomSyncController({
       onRemoteState,
     });
 
-    const remoteState = await syncSession.fetchState();
+    const session = syncSession;
+    const remoteState = await session.fetchState();
+    if (session !== syncSession) return { remoteState: null };
     if (remoteState) {
       syncHasRemoteState = true;
     }
-    syncSession.startStream();
+    session.startStream();
     return { remoteState };
   }
 

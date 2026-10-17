@@ -33,7 +33,9 @@ export function createRoomSync({ roomCode, onRemoteState }) {
     }
 
     try {
-      const response = await fetch(buildRoomUrl(roomCode));
+      const response = await fetch(buildRoomUrl(roomCode), {
+        signal: AbortSignal.timeout(5000),
+      });
       if (!response.ok) {
         return null;
       }
@@ -156,7 +158,9 @@ function normalizeSyncBaseUrl(candidate) {
 
 export async function checkSyncHealth() {
   try {
-    const response = await fetch(`${resolveSyncBaseUrl()}/healthz`);
+    const response = await fetch(`${resolveSyncBaseUrl()}/healthz`, {
+      signal: AbortSignal.timeout(5000),
+    });
     if (!response.ok) {
       return false;
     }

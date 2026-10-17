@@ -879,3 +879,191 @@ body[data-theme="rugged"] {
     color: rgba(255, 255, 255, 0.8);
   }
 }
+
+/* Presentation controls share explicit theme tokens with the HTML workout UI. */
+body[data-theme="casino"] { --view-surface: #103e32; --view-text: #fff4d5; --view-border: #c9ad6d; }
+body[data-theme="plain"] { --view-surface: #ffffff; --view-text: #1f2933; --view-border: #65758a; }
+body[data-theme="rugged"] { --view-surface: #2e241f; --view-text: #ffe3b7; --view-border: #d18c48; }
+.presentation-choice {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.9rem;
+  color: var(--view-text);
+}
+.presentation-choice select {
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid var(--view-border);
+  border-radius: 8px;
+  background: var(--view-surface);
+  color: var(--view-text);
+  font: inherit;
+}
+.presentation-notice {
+  color: var(--view-text);
+  margin: 0;
+  max-width: 42rem;
+  text-align: center;
+}
+.presentation-notice:empty { display: none; }
+#tabletop { display: none; }
+body[data-presentation="three"] {
+  #tabletop {
+    display: block;
+    width: 100%;
+    height: clamp(320px, 58vh, 600px);
+    border-radius: 16px;
+    overflow: hidden;
+    border: 1px solid var(--view-border);
+    box-sizing: border-box;
+    background: var(--view-surface);
+    canvas { display: block; width: 100%; height: 100%; cursor: pointer; }
+  }
+  #workout-grid { display: flex; flex-direction: column; gap: 20px; }
+  #drawn-cards { display: none; }
+  #rep-summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .rep-summary-item { min-width: 0; padding: 16px; aspect-ratio: auto; }
+  .rep-summary-count { font-size: clamp(2rem, 7vw, 4rem); }
+  .rep-summary-exercise { font-size: clamp(0.9rem, 2vw, 1.2rem); }
+}
+:where(button, select, input, textarea, a):focus-visible {
+  outline: 3px solid var(--view-border);
+  outline-offset: 4px;
+}
+@media (min-width: 900px) and (orientation: landscape) {
+  body[data-presentation="three"] {
+    #workout-grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(240px, 1fr); align-items: center; }
+    #tabletop { height: clamp(380px, 65vh, 640px); }
+  }
+}
+@media (max-width: 500px) {
+  #configuration-screen { box-sizing: border-box; padding: 20px 16px; }
+  .presentation-choice { justify-content: center; }
+  body[data-presentation="three"] #tabletop { height: 440px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
+body[data-theme="casino"][data-presentation="three"] {
+  background: radial-gradient(ellipse at top, #1b4b3d, #071c17);
+}
+body[data-theme="plain"][data-presentation="three"] {
+  background: #eae7e1;
+}
+body[data-theme="rugged"][data-presentation="three"] {
+  background: radial-gradient(ellipse at top, #3b2b21, #171310);
+}
+
+/* Riveted gunmetal corners and forge embers never intercept deck taps. */
+body[data-theme="rugged"][data-presentation="three"] #tabletop {
+  position: relative;
+  border: 3px solid #59636d;
+  border-radius: 9px;
+  box-shadow: 0 10px 28px #000b, 0 0 0 1px #151a20, 0 0 24px #dc45002e;
+}
+body[data-theme="rugged"][data-presentation="three"] #tabletop::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: 5px;
+  box-shadow: inset 0 0 38px 10px #0009, inset 0 0 0 1px #e9662238;
+  background:
+    radial-gradient(circle at 11px 11px, #a7b1bb 0 2px, #171717 3px 5px, transparent 6px),
+    radial-gradient(circle at calc(100% - 11px) 11px, #a7b1bb 0 2px, #171717 3px 5px, transparent 6px),
+    radial-gradient(circle at 11px calc(100% - 11px), #a7b1bb 0 2px, #171717 3px 5px, transparent 6px),
+    radial-gradient(circle at calc(100% - 11px) calc(100% - 11px), #a7b1bb 0 2px, #171717 3px 5px, transparent 6px),
+    linear-gradient(135deg, #515e69, #171e25) left top / 44px 22px no-repeat,
+    linear-gradient(135deg, #515e69, #171e25) left top / 22px 44px no-repeat,
+    linear-gradient(225deg, #515e69, #171e25) right top / 44px 22px no-repeat,
+    linear-gradient(225deg, #515e69, #171e25) right top / 22px 44px no-repeat,
+    linear-gradient(45deg, #515e69, #171e25) left bottom / 44px 22px no-repeat,
+    linear-gradient(45deg, #515e69, #171e25) left bottom / 22px 44px no-repeat,
+    linear-gradient(315deg, #515e69, #171e25) right bottom / 44px 22px no-repeat,
+    linear-gradient(315deg, #515e69, #171e25) right bottom / 22px 44px no-repeat;
+}
+
+body[data-theme="rugged"][data-presentation="three"] {
+  background: radial-gradient(ellipse at bottom, #45200f 0%, #121820 52%, #080b10 100%);
+  #round-title { text-shadow: 0 2px 0 #000, 0 0 20px #f8661755; }
+  .rep-summary-item { background: linear-gradient(140deg, #232d37, #0d1218); border-color: #6c4834; box-shadow: inset 0 1px #a2b2c522, 0 8px 18px #0006; }
+  #draw-button { background: linear-gradient(#ff8b20, #d93608); border: 1px solid #ffbe63; box-shadow: 0 0 24px #f65a003b, inset 0 1px #ffe1a5; letter-spacing: 0.08em; }
+  #tabletop::after { z-index: 2; }
+}
+
+#fullscreen-toggle {
+  display: block;
+  margin: 8px 0 8px auto;
+  min-height: 44px;
+  padding: 8px 14px;
+  font-size: 0.9rem;
+  background: var(--view-surface);
+  color: var(--view-text);
+  border: 1px solid var(--view-border);
+}
+#fullscreen-finish, .deck-draw-target { display: none; }
+body.workout-fullscreen { overflow: hidden; }
+body.workout-fullscreen .site-footer { display: none; }
+body #app.is-fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  width: 100%;
+  max-width: none;
+  height: 100vh;
+  height: 100dvh;
+  box-sizing: border-box;
+  padding: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 8px;
+  background: var(--fullscreen-background, var(--view-surface));
+  color: var(--view-text);
+  .presentation-choice { display: none; }
+  #round-title { grid-column: 1; grid-row: 1; margin: 0; align-self: center; font-size: clamp(0.85rem, 2.5vw, 1.4rem); text-align: left; }
+  #round-title::before, #round-title::after { display: none; }
+  #draw-button, #fullscreen-finish { grid-column: 2; grid-row: 1; align-self: center; margin: 0; padding: 8px 10px; font-size: clamp(0.7rem, 2vw, 0.95rem); min-height: 44px; letter-spacing: normal; }
+  #fullscreen-toggle { grid-column: 3; grid-row: 1; margin: 0; padding: 8px 10px; font-size: clamp(0.7rem, 2vw, 0.95rem); }
+  #fullscreen-finish:not([hidden]) { display: block; }
+  #fullscreen-finish[hidden] { display: none !important; }
+  #workout-layout { grid-column: 1 / -1; grid-row: 2; min-height: 0; height: 100%; margin: 0; gap: 6px; display: flex; flex-direction: column; }
+  #workout-grid { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; gap: 8px; }
+  #tabletop { position: relative; grid-column: 1; grid-row: 1; height: 100%; min-height: 0; }
+  #rep-summary { grid-column: 1; grid-row: 2; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+  .rep-summary-item { order: initial; aspect-ratio: auto; min-height: 0; min-width: 0; padding: 10px 4px; align-items: center; text-align: center; gap: 4px; border-radius: 8px; }
+  .rep-summary-count { font-size: clamp(2rem, 5vw, 4.5rem); line-height: 1; }
+  .rep-summary-exercise { font-size: clamp(0.65rem, 1.7vw, 1.1rem); line-height: 1.2; overflow-wrap: anywhere; }
+  #instructions { order: -1; flex: none; margin: 0; font-size: 0.85rem; }
+  #instructions:empty { display: none; }
+  #instructions > p { margin: 0; font-size: inherit; }
+  #instructions > button, #workout-feedback { display: none; }
+}
+body[data-presentation="three"] #app.is-fullscreen #tabletop .deck-draw-target:not([hidden]) {
+  display: block;
+  position: absolute;
+  z-index: 4;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  transform: translate(-50%, -50%);
+  background: transparent !important;
+  box-shadow: none !important;
+}
+body[data-presentation="classic"] #app.is-fullscreen #drawn-cards {
+  grid-column: 1;
+  grid-row: 1;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-rows: minmax(0, 1fr);
+  min-height: 0;
+  gap: 8px;
+  .card { order: initial; aspect-ratio: auto; min-height: 0; padding: 6px; font-size: clamp(1.2rem, 5vw, 4rem); }
+}
+@media (orientation: landscape) {
+  body[data-presentation="classic"] #app.is-fullscreen #drawn-cards { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}

@@ -1,65 +1,22 @@
 const { test, expect } = require("@playwright/test");
-const http = require("http");
-const fs = require("fs");
-const path = require("path");
-
-const rootDir = path.resolve(__dirname, "..");
-const mimeTypes = {
-  ".css": "text/css",
-  ".html": "text/html",
-  ".js": "application/javascript",
-  ".mjs": "application/javascript",
-  ".json": "application/json",
-  ".map": "application/json",
-};
-
 let server;
 let baseUrl;
 const documentRequests = [];
-
-async function serveFile(req, res) {
-  try {
-    const requestUrl = new URL(req.url, "http://localhost");
-    if (requestUrl.pathname === "/index.html") documentRequests.push(req.url);
-    let pathname = decodeURIComponent(requestUrl.pathname);
-    if (pathname.endsWith("/")) {
-      pathname = `${pathname}index.html`;
-    }
-    if (pathname === "/") {
-      pathname = "/index.html";
-    }
-    const filePath = path.resolve(rootDir, `.${path.normalize(pathname)}`);
-    if (!filePath.startsWith(rootDir)) {
-      res.statusCode = 403;
-      res.end("Forbidden");
-      return;
-    }
-    const data = await fs.promises.readFile(filePath);
-    const ext = path.extname(filePath).toLowerCase();
-    res.statusCode = 200;
-    res.setHeader("Content-Type", mimeTypes[ext] ?? "application/octet-stream");
-    res.end(data);
-  } catch (error) {
-    res.statusCode = 404;
-    res.end("Not Found");
-  }
-}
-
 test.beforeAll(async () => {
-  server = http.createServer((req, res) => {
-    serveFile(req, res);
+  const { createServer } = await import("vite");
+  server = await createServer({
+    server: { host: "127.0.0.1", port: 0, hmr: false, watch: null },
+    plugins: [{ name: "record-document-requests", configureServer(vite) {
+      vite.middlewares.use((req, res, next) => {
+        if (req.url.split("?")[0] === "/index.html") documentRequests.push(req.url);
+        next();
+      });
+    } }],
   });
-  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
-  const { port } = server.address();
-  baseUrl = `http://127.0.0.1:${port}/index.html`;
+  await server.listen();
+  baseUrl = `http://127.0.0.1:${server.httpServer.address().port}/index.html`;
 });
-
-test.afterAll(async () => {
-  if (server) {
-    await new Promise((resolve) => server.close(resolve));
-    server = undefined;
-  }
-});
+test.afterAll(async () => { await server?.close(); });
 
 async function startWorkoutWithOptions(
   page,
@@ -285,6 +242,7 @@ async function installRoomSocketMock(page, { onUpdate } = {}) {
 
 test.describe("Deck of Gains app", () => {
   test.beforeEach(async ({ page }, testInfo) => {
+    await page.addInitScript(() => localStorage.setItem("deckOfGains:presentation", "classic"));
     await installAnalyticsMock(page, {
       doNotTrack: testInfo.title.includes("Do Not Track"),
       available: !testInfo.title.includes("analytics is unavailable"),
@@ -1306,6 +1264,7 @@ test.describe("Deck of Gains app", () => {
   });
 
   test("draws four cards while more than eight remain", async ({ page }) => {
+    await startWorkoutWithOptions(page);
     await setDeck(page, [
       { suit: "hearts", number: 1 },
       { suit: "spades", number: 12 },
