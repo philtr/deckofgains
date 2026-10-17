@@ -1,3 +1,4 @@
+import { readUrlState, buildStateUrl, migrateLegacyUrlState } from "./urlState.js";
 import {
   suits,
   defaultMultipliers,
@@ -11,8 +12,6 @@ const CARD_SEPARATOR = ".";
 const MULTIPLIER_SEPARATOR = ".";
 const MULTIPLIER_PAIR_SEPARATOR = "-";
 const ROOM_PARAM = "room";
-
-let lastSerialized = null;
 
 function normalizeRoomCode(value) {
   if (typeof value !== "string") {
@@ -31,7 +30,7 @@ export function resolveRoomCode(params) {
 }
 
 function resolveRoomCodeFromLocation() {
-  return resolveRoomCode(new URLSearchParams(window.location.search));
+  return resolveRoomCode(readUrlState());
 }
 
 function formatMinutesFromSeconds(seconds) {
@@ -266,14 +265,13 @@ export function persistState(state) {
   const params = serializeState(state, {
     roomCode: resolveRoomCodeFromLocation(),
   });
-  const search = params.toString();
-  if (search === lastSerialized && search === window.location.search.slice(1)) {
+  const url = buildStateUrl(params);
+  const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+  if (url === currentUrl) {
     return;
   }
 
-  const url = `${window.location.pathname}${search ? `?${search}` : ""}`;
   history.pushState(null, "", url);
-  lastSerialized = search;
 }
 
 export function replaceStateWithAutoDrawRemaining(state, remainingSeconds) {
@@ -281,24 +279,18 @@ export function replaceStateWithAutoDrawRemaining(state, remainingSeconds) {
     autoDrawRemainingSeconds: remainingSeconds,
     roomCode: resolveRoomCodeFromLocation(),
   });
-  const search = params.toString();
-  if (search === window.location.search.slice(1)) {
+  const url = buildStateUrl(params);
+  const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+  if (url === currentUrl) {
     return;
   }
-  const url = `${window.location.pathname}${search ? `?${search}` : ""}`;
   history.replaceState(null, "", url);
-  lastSerialized = search;
-}
-
-export function setInitialSerialized(value) {
-  lastSerialized = value ?? null;
 }
 
 export function subscribeToPopState(callback) {
   window.addEventListener("popstate", () => {
-    const restored = deserializeState(
-      new URLSearchParams(window.location.search),
-    );
+    migrateLegacyUrlState();
+    const restored = deserializeState(readUrlState());
     callback(restored);
   });
 }
