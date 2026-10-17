@@ -1,3 +1,4 @@
+import { readUrlState } from "./urlState.js";
 import { Socket } from "./vendor/phoenix.mjs";
 
 function buildRoomUrl(roomCode, suffix = "") {
@@ -131,7 +132,7 @@ function resolveSyncBaseUrl() {
     return "https://sync.deck.fitness";
   }
 
-  const params = new URLSearchParams(window.location.search);
+  const params = readUrlState();
   const override = params.get("sync");
   if (override) {
     return normalizeSyncBaseUrl(override);

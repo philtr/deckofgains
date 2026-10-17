@@ -1,3 +1,5 @@
+import { readUrlState, buildStateUrl } from "./urlState.js";
+
 function serializeSyncState(state) {
   return JSON.stringify(state ?? null);
 }
@@ -12,7 +14,6 @@ function normalizeRoomCodeInput(value) {
 
 export function createRoomSyncController({
   resolveRoomCode,
-  setInitialSerialized,
   createRoomSync,
 }) {
   let syncSession = null;
@@ -23,7 +24,7 @@ export function createRoomSyncController({
   let syncEnabled = true;
 
   function resolveRoomCodeFromLocation() {
-    return resolveRoomCode(new URLSearchParams(window.location.search));
+    return resolveRoomCode(readUrlState());
   }
 
   function updateRoomControls(roomCode) {
@@ -44,16 +45,14 @@ export function createRoomSyncController({
   }
 
   function updateRoomParam(roomCode) {
-    const params = new URLSearchParams(window.location.search);
+    const params = readUrlState();
     if (roomCode) {
       params.set("room", roomCode);
     } else {
       params.delete("room");
     }
-    const search = params.toString();
-    const url = `${window.location.pathname}${search ? `?${search}` : ""}`;
+    const url = buildStateUrl(params);
     history.replaceState(null, "", url);
-    setInitialSerialized(params.toString());
     updateRoomControls(roomCode);
   }
 

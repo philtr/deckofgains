@@ -1,3 +1,4 @@
+import { readUrlState } from "./urlState.js";
 import { defaultTheme, supportedThemes } from "./constants.js";
 
 export function resolveTheme(themeCandidate) {
@@ -9,7 +10,9 @@ export function deriveInitialTheme(searchParams) {
   const params =
     searchParams instanceof URLSearchParams
       ? searchParams
-      : new URLSearchParams(searchParams ?? window.location.search);
+      : searchParams == null
+        ? readUrlState()
+        : new URLSearchParams(searchParams);
 
   const themeParam = params.get("theme");
   if (themeParam) {

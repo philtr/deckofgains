@@ -15,10 +15,12 @@ const mimeTypes = {
 
 let server;
 let baseUrl;
+const documentRequests = [];
 
 async function serveFile(req, res) {
   try {
     const requestUrl = new URL(req.url, "http://localhost");
+    if (requestUrl.pathname === "/index.html") documentRequests.push(req.url);
     let pathname = decodeURIComponent(requestUrl.pathname);
     if (pathname.endsWith("/")) {
       pathname = `${pathname}index.html`;
@@ -316,6 +318,94 @@ test.describe("Deck of Gains app", () => {
     });
 
     await page.goto(baseUrl);
+  });
+
+  test("workout fragments survive reload without sending state to the server", async ({ page }) => {
+    await startWorkoutWithOptions(page, { theme: "rugged" });
+    await page.click("#draw-button");
+    const before = await page.evaluate(() => ({
+      roundNumber, deck, lastDrawn, roundCompleted,
+    }));
+    const url = new URL(page.url());
+    expect(url.search).toBe("");
+    expect(new URLSearchParams(url.hash.slice(1)).get("started")).toBe("1");
+
+    const requestCount = documentRequests.length;
+    await page.reload();
+    await expect(page.locator("#app")).toBeVisible();
+    expect(documentRequests.slice(requestCount)).toEqual(["/index.html"]);
+    expect(await page.evaluate(() => ({
+      roundNumber, deck, lastDrawn, roundCompleted,
+    }))).toEqual(before);
+    await expect(page.locator("body")).toHaveAttribute("data-theme", "rugged");
+  });
+
+  test("back and forward restore fragment workout snapshots", async ({ page }) => {
+    await startWorkoutWithOptions(page);
+    const before = await page.evaluate(() => ({ roundNumber, deck, lastDrawn }));
+    await page.click("#draw-button");
+    const after = await page.evaluate(() => ({ roundNumber, deck, lastDrawn }));
+    await page.goBack();
+    await expect.poll(() => page.evaluate(() => ({ roundNumber, deck, lastDrawn })))
+      .toEqual(before);
+    await expect(page.locator("#drawn-cards .card")).toHaveCount(0);
+    await page.goForward();
+    await expect.poll(() => page.evaluate(() => ({ roundNumber, deck, lastDrawn })))
+      .toEqual(after);
+    await expect(page.locator("#drawn-cards .card")).toHaveCount(4);
+    expect(new URL(page.url()).search).toBe("");
+  });
+
+  test("fragment sync overrides survive state changes and New Set", async ({ page }) => {
+    let healthChecks = 0;
+    await page.route("https://custom-sync.example/healthz", (route) => {
+      healthChecks += 1;
+      return route.fulfill({
+        status: 200, contentType: "application/json",
+        headers: { "Access-Control-Allow-Origin": "*" }, body: "{}",
+      });
+    });
+    await page.goto("about:blank");
+    await page.goto(`${baseUrl}#theme=plain&sync=https%3A%2F%2Fcustom-sync.example`);
+    await startWorkoutWithOptions(page, { theme: "plain" });
+    const params = new URLSearchParams(new URL(page.url()).hash.slice(1));
+    expect(params.get("sync")).toBe("https://custom-sync.example");
+    const historyLength = await page.evaluate(async () => {
+      const { persistState } = await import("/scripts/persistence.js");
+      const { getState } = await import("/scripts/workoutState.js");
+      const before = history.length;
+      persistState(getState());
+      persistState(getState());
+      return { before, after: history.length };
+    });
+    expect(historyLength.after).toBe(historyLength.before);
+    await page.evaluate(() => {
+      deck = [{ suit: "hearts", number: 2 }];
+      roundCompleted = false;
+      drawCards();
+    });
+    await page.click("#feedback-skip");
+    await page.getByRole("button", { name: "New Set", exact: true }).click();
+    await expect(page.locator("#configuration-screen")).toBeVisible();
+    expect(new URL(page.url()).search).toBe("");
+    expect(new URLSearchParams(new URL(page.url()).hash.slice(1)).get("sync"))
+      .toBe("https://custom-sync.example");
+    await expect.poll(() => healthChecks).toBe(2);
+  });
+
+  test("legacy query state migrates to the fragment with fragment values taking precedence", async ({ page }) => {
+    await page.goto(`${baseUrl}?theme=plain&rugged=true&started=1&round=3&deck=h-2.s-3&utm_source=newsletter#theme=rugged`);
+    await expect(page.locator("#app")).toBeVisible();
+    await expect(page.locator("body")).toHaveAttribute("data-theme", "rugged");
+    const url = new URL(page.url());
+    expect(url.search).toBe("?utm_source=newsletter");
+    const params = new URLSearchParams(url.hash.slice(1));
+    expect(params.get("theme")).toBe("rugged");
+    expect(params.get("deck")).toBe("h-2.s-3");
+    expect(await page.evaluate(() => roundNumber)).toBe(3);
+    await page.reload();
+    await expect(page.locator("#app")).toBeVisible();
+    expect(await page.evaluate(() => roundNumber)).toBe(3);
   });
 
   test("configures Umami for sanitized manual pageviews and performance", async ({
@@ -900,7 +990,7 @@ test.describe("Deck of Gains app", () => {
     expect(restored.roundCompleted).toBe(true);
     expect(restored.deckSize).toBe(2);
 
-    const params = new URL(page.url()).searchParams;
+    const params = new URLSearchParams(new URL(page.url()).hash.slice(1));
     expect(params.get("room")).toBe("abc");
 
     const resumeEvent = (await getAnalyticsCalls(page)).find(
@@ -1425,7 +1515,7 @@ test.describe("Deck of Gains app", () => {
     });
 
     const initialRemaining = await page.evaluate(() => {
-      return new URLSearchParams(window.location.search).get(
+      return new URLSearchParams(window.location.hash.slice(1)).get(
         "autoRemainingSeconds",
       );
     });
@@ -1434,7 +1524,7 @@ test.describe("Deck of Gains app", () => {
     await page.waitForTimeout(6000);
 
     const laterRemaining = await page.evaluate(() => {
-      return new URLSearchParams(window.location.search).get(
+      return new URLSearchParams(window.location.hash.slice(1)).get(
         "autoRemainingSeconds",
       );
     });
@@ -1838,7 +1928,7 @@ test.describe("Deck of Gains app", () => {
     await expect(page.locator("#auto-draw-minutes")).toHaveValue("2");
     await expect(page.locator("#auto-draw-seconds")).toHaveValue("5");
 
-    const params = new URL(page.url()).searchParams;
+    const params = new URLSearchParams(new URL(page.url()).hash.slice(1));
     expect(params.get("theme")).toBe("rugged");
     expect(params.get("multipliers")).toBe("h-3.s-4.d-5.c-5");
     expect(params.get("auto")).toBe("1");
@@ -2096,7 +2186,7 @@ test.describe("Deck of Gains app", () => {
     await expect(page.locator("#instructions p")).toHaveCount(0);
 
     const url = page.url();
-    const params = new URL(url).searchParams;
+    const params = new URLSearchParams(new URL(url).hash.slice(1));
 
     expect(params.get("started")).toBe("1");
     expect(params.get("round")).toBe("2");

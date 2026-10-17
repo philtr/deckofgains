@@ -3,11 +3,11 @@
 ## Theming
 
 - Any new UI elements or components must explicitly support the **casino** (default), **plain**, and **rugged** themes. Ensure styles, classes, and assets are compatible with each theme and that new theme options are wired through `scripts/constants.js`, `scripts/theme.js`, and `styles.css`.
-- Preserve legacy theme URL compatibility: `?theme=rugged` is preferred, but `?rugged=true` should still map to the rugged theme.
+- Preserve legacy theme URL compatibility: `#theme=rugged` is preferred; legacy `?theme=rugged` and `?rugged=true` should still map to the rugged theme.
 
 ## State & URL Persistence
 
-- Workout state and configuration are mirrored into the query string (see `scripts/persistence.js`); keep params backward-compatible when adding new fields.
+- Workout state and configuration are mirrored into the URL fragment (see `scripts/persistence.js` and `scripts/urlState.js`). Preserve legacy query-link parsing and migration, and keep params backward-compatible when adding new fields.
 - Configuration comes from `localStorage` (`deckOfGains:configuration`) only when URL parameters do not explicitly define configuration values.
 - Auto-draw intervals are stored in seconds via `autoIntervalSeconds`; the legacy `autoInterval` (minutes) still needs to parse correctly.
 

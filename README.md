@@ -20,7 +20,7 @@ The casino theme is the default and is applied on the first render, while saved 
 
 ## The Rugged Theme 🪓🔥
 
-You think you’re hardcore? You’re not rugged enough until you hit **Deck of Gains** with the `?theme=rugged` query param (the classic `?rugged=true` link still works for your old bookmarks). This mode transforms the app into something that looks like it crawled out of a Viking gym.
+You think you’re hardcore? You’re not rugged enough until you hit **Deck of Gains** with the `#theme=rugged` fragment (the classic `?rugged=true` link still works for your old bookmarks). This mode transforms the app into something that looks like it crawled out of a Viking gym.
 
 Here’s what the **Rugged Theme** brings:
 
@@ -38,10 +38,12 @@ Activate the **Rugged Theme** and prove you’re ready to enter the tribe of leg
 2. **Add to Home Screen** for a full-screen experience (especially on iOS).
 3. Hit "Draw Cards" and let the pain begin.
 4. Once the deck is done, share a thumbs-up or thumbs-down rating and, if you want, send written feedback. Skip hides this prompt for three months. Then hit "New Set" to start over with the same theme and settings—or collapse in glory.
-5. Want to switch it up? Add `?theme=plain` for the minimal look or `?theme=rugged` for the warrior’s playground (the legacy `?rugged=true` still works).
+5. Want to switch it up? Add `#theme=plain` for the minimal look or `#theme=rugged` for the warrior’s playground (the legacy `?rugged=true` still works).
 6. On landscape tablets and larger screens, the drawn cards stay on the left in a 2x2 grid while the rep summary sits on the right in its own 2x2 grid with oversized counts that scale with the tile size, the exercise name underneath, and zeroes shown for any exercise not in the current draw.
-7. Your configuration _and_ active workout are mirrored in the URL, so refreshing the page or sharing the link drops you—and your unsuspecting friends—right back into the current round. Suits are shortened to `h/s/d/c` codes to keep those links lean, invalid card values are ignored when restoring state, auto-draw resumes from the `autoRemainingSeconds` value when present, and your latest configuration is cached locally so it comes back on a plain reload (URL settings still win).
-8. Want real-time sync across devices? Use the "Create or join a group" box to enter a room name, or add `?room=YOURCODE` to the URL. Everyone in the same room stays in lockstep, and the server state is treated as the source of truth when a room is present. Hitting "New Set" in a room resets the room state for everyone. The sync host defaults to `http://localhost:4000` when running on localhost/127.0.0.1, otherwise it uses `https://sync.deck.fitness`, and you can override it with `?sync=https://your-sync-host`. If the sync server health check (`/healthz`) fails, the sync controls are disabled.
+7. Your configuration _and_ active workout are mirrored in the URL fragment (after `#`), so refreshing the page or sharing the link drops you—and your unsuspecting friends—right back into the current round. Suits are shortened to `h/s/d/c` codes to keep those links lean, invalid card values are ignored when restoring state, auto-draw resumes from the `autoRemainingSeconds` value when present, and your latest configuration is cached locally so it comes back on a plain reload (URL settings still win).
+8. Want real-time sync across devices? Use the "Create or join a group" box to enter a room name, or add `#room=YOURCODE` to the URL. Everyone in the same room stays in lockstep, and the server state is treated as the source of truth when a room is present. Hitting "New Set" in a room resets the room state for everyone. The sync host defaults to `http://localhost:4000` when running on localhost/127.0.0.1, otherwise it uses `https://sync.deck.fitness`, and you can override it with `#sync=https://your-sync-host`. If the sync server health check (`/healthz`) fails, the sync controls are disabled.
+
+URL state stays in the browser: fragments are omitted from page requests to the web server. Combine settings with `&`, for example `#theme=plain&auto=1&autoIntervalSeconds=90`. Legacy query links still load and are replaced with fragment links in the address bar; their first request necessarily includes the old query, but subsequent reloads use the fragment. Fragment values take precedence when both formats are present. Campaign parameters such as `utm_source` stay in the query string. Group sync still sends workout state to the selected sync server when you join a room.
 
 To run it locally with Node:
 

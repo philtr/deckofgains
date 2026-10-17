@@ -1,3 +1,4 @@
+import { readUrlState, buildStateUrl, migrateLegacyUrlState } from "./urlState.js";
 import {
   suits,
   defaultMultipliers,
@@ -25,7 +26,6 @@ import {
   replaceStateWithAutoDrawRemaining,
   serializeState,
   resolveRoomCode,
-  setInitialSerialized,
   subscribeToPopState,
 } from "./persistence.js";
 import {
@@ -81,7 +81,6 @@ const autoDrawController = createAutoDrawController({
 
 const roomSyncController = createRoomSyncController({
   resolveRoomCode,
-  setInitialSerialized,
   createRoomSync,
 });
 
@@ -351,9 +350,8 @@ function appendNewSetButton(instructionsDiv) {
       },
       { roomCode },
     );
-    const search = params.toString();
-    const url = `${window.location.pathname}${search ? `?${search}` : ""}`;
-    window.location.href = url;
+    history.pushState(null, "", buildStateUrl(params));
+    window.location.reload();
   });
   instructionsDiv.appendChild(newSetButton);
 }
@@ -581,15 +579,13 @@ export async function startWorkout() {
 
 function handleRestoredState(restored) {
   const previousState = getState();
-  const params = new URLSearchParams(window.location.search);
+  const params = readUrlState();
   const derivedTheme = deriveInitialTheme(params);
   const { configuration } = resolveConfigurationFromSources({
     params,
     sourceConfiguration: restored.configuration,
     derivedTheme,
   });
-
-  setInitialSerialized(params.toString());
 
   replaceState(
     {
@@ -625,10 +621,11 @@ function handleRestoredState(restored) {
 }
 
 export async function initializeApp() {
+  migrateLegacyUrlState();
   Analytics.initialize();
   bindStateToWindow(window);
 
-  const params = new URLSearchParams(window.location.search);
+  const params = readUrlState();
   const roomCode = resolveRoomCode(params);
   const persisted = deserializeState(params);
   const derivedTheme = deriveInitialTheme(params);
@@ -667,7 +664,6 @@ export async function initializeApp() {
   applyTheme(stateSnapshot.configuration.theme);
   populateConfigurationForm(stateSnapshot);
   ensureConfigurationListeners();
-  setInitialSerialized(params.toString());
   persistConfigurationIfChanged(stateSnapshot.configuration);
 
   roomSyncController.updateRoomControls(roomCode);
@@ -705,7 +701,7 @@ export async function initializeApp() {
   });
 
   subscribeToPopState((restored) => {
-    const nextParams = new URLSearchParams(window.location.search);
+    const nextParams = readUrlState();
     const nextRoomCode = resolveRoomCode(nextParams);
     roomSyncController
       .ensureSession(nextRoomCode, applyRemoteState)
