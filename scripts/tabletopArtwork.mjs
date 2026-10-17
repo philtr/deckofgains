@@ -19,24 +19,36 @@ const scratches = [
   length,
 }));
 
-// All coordinates live on a torus so knots, scars, and relief join on repeat.
-function ruggedTimber(x, y, hash) {
-  const phaseX = x * Math.PI * 2,
-    phaseY = y * Math.PI * 2;
-  const dx = wrappedDistance(x - 0.27),
-    dy = wrappedDistance(y - 0.37);
-  const radius = Math.hypot(dx * 1.4, dy * 5);
-  const bend = Math.exp(-radius * 9) * Math.sin(dx * 18) * 10;
-  const knot =
-    Math.exp(-radius * 12) * 0.3 +
-    (0.5 + Math.sin(radius * 210) * 0.5) * Math.exp(-radius * 8) * 0.22;
+const pitCount = 28;
+const pits = Array.from({ length: pitCount * pitCount }, (_, index) => ({
+  x: 0.25 + pixelNoise(index, 31) * 0.5,
+  y: 0.25 + pixelNoise(index, 73) * 0.5,
+  radius: 0.22 + pixelNoise(index, 117) * 0.14,
+}));
+
+// Periodic, irregular hammer dents avoid both tile seams and directional fabric-like patterns.
+function ruggedSteel(x, y, hash) {
+  const gx = x * pitCount,
+    gy = y * pitCount;
+  const cx = Math.floor(gx),
+    cy = Math.floor(gy);
   let tone =
-    0.65 +
-    Math.sin(phaseY * 44 + Math.sin(phaseX) * 3 + bend) * 0.14 +
-    Math.sin(phaseY * 91 + Math.sin(phaseX * 3)) * 0.08 +
-    Math.sin(phaseX * 2) * Math.cos(phaseY * 3) * 0.1 +
-    hash * 0.09 -
-    knot;
+    0.66 +
+    hash * 0.1 +
+    Math.sin(x * Math.PI * 4) * Math.cos(y * Math.PI * 6) * 0.06;
+  for (let oy = -1; oy <= 1; oy++)
+    for (let ox = -1; ox <= 1; ox++) {
+      const pit =
+        pits[
+          ((cy + oy + pitCount) % pitCount) * pitCount +
+            ((cx + ox + pitCount) % pitCount)
+        ];
+      const dx = gx - (cx + ox + pit.x),
+        dy = gy - (cy + oy + pit.y);
+      const distance = (dx * dx + dy * dy) / pit.radius;
+      if (distance < 3)
+        tone += 0.09 * Math.exp(-distance * 2) - 0.32 * Math.exp(-distance * 8);
+    }
   for (const scar of scratches) {
     const sx = wrappedDistance(x - scar.x),
       sy = wrappedDistance(y - scar.y);
@@ -64,7 +76,7 @@ export function createRuggedReliefPixels(size = 512) {
     for (let x = 0; x < size; x++) {
       const column = x % (size - 1),
         row = y % (size - 1);
-      const height = ruggedTimber(
+      const height = ruggedSteel(
         column / (size - 1),
         row / (size - 1),
         pixelNoise(column, row),
@@ -90,9 +102,9 @@ export function createSurfacePixels(theme, palette, size = 512) {
     for (let x = 0; x < size; x++) {
       const column = x % (size - 1);
       const hash = pixelNoise(column, row);
-      const timber =
+      const steel =
         theme === "rugged"
-          ? ruggedTimber(column / (size - 1), row / (size - 1), hash)
+          ? ruggedSteel(column / (size - 1), row / (size - 1), hash)
           : 0;
       const blend = theme === "plain" ? 0.05 + hash * 0.05 : 0.12 + hash * 0.22;
       const offset = (y * size + x) * 4;
@@ -100,8 +112,8 @@ export function createSurfacePixels(theme, palette, size = 512) {
         pixels[offset + channel] =
           theme === "rugged"
             ? grain[channel] +
-              (surface[channel] - grain[channel]) * timber +
-              Math.max(0, timber - 0.9) * 65
+              (surface[channel] - grain[channel]) * steel +
+              Math.max(0, steel - 0.9) * 65
             : surface[channel] + (grain[channel] - surface[channel]) * blend;
       }
       pixels[offset + 3] = 255;
@@ -142,7 +154,7 @@ export function drawCardFace(ctx, w, h, card) {
 }
 
 export function drawCardBack(ctx, w, h, theme, palette) {
-  ctx.fillStyle = theme === "rugged" ? "#c4ac83" : "#f8f1df";
+  ctx.fillStyle = theme === "rugged" ? "#8a9299" : "#f8f1df";
   ctx.fillRect(0, 0, w, h);
   ctx.fillStyle = palette.back;
   ctx.fillRect(16, 16, w - 32, h - 32);
@@ -162,33 +174,50 @@ export function drawCardBack(ctx, w, h, theme, palette) {
     ctx.strokeRect(28, 28, w - 56, h - 56);
     return;
   }
-  // Scuffed leather, stitched perimeter, and a broad axe stamp.
+  // Scorched gunmetal plate with rivets and crossed hammer/maul silhouettes.
   for (let i = 0; i < 5000; i++) {
     const x = 20 + ((i * 73) % (w - 40)),
       y = 20 + ((i * 137) % (h - 40));
-    ctx.fillStyle = i % 3 ? "#241a15" : "#72513a";
+    ctx.fillStyle = i % 3 ? "#080c10" : "#596470";
     ctx.globalAlpha = 0.22;
     ctx.fillRect(x, y, (i % 9) + 1, 1);
   }
   ctx.globalAlpha = 1;
-  ctx.setLineDash([9, 7]);
-  ctx.strokeRect(31, 31, w - 62, h - 62);
-  ctx.setLineDash([]);
-  ctx.fillStyle = palette.ink;
-  for (const angle of [-0.65, 0.65]) {
+  ctx.strokeStyle = "#d64b13";
+  ctx.lineWidth = 5;
+  ctx.strokeRect(26, 26, w - 52, h - 52);
+  ctx.strokeStyle = "#747e86";
+  ctx.lineWidth = 2;
+  ctx.strokeRect(35, 35, w - 70, h - 70);
+  for (const x of [43, w - 43])
+    for (const y of [43, h - 43]) {
+      ctx.fillStyle = "#a9b0b5";
+      ctx.beginPath();
+      ctx.arc(x, y, 7, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = "#111820";
+      ctx.beginPath();
+      ctx.moveTo(x - 4, y);
+      ctx.lineTo(x + 4, y);
+      ctx.stroke();
+    }
+  for (const [index, angle] of [-0.65, 0.65].entries()) {
     ctx.save();
     ctx.translate(w / 2, 203);
     ctx.rotate(angle);
-    ctx.fillRect(-7, -90, 14, 194);
-    ctx.beginPath();
-    ctx.moveTo(7, -90);
-    ctx.lineTo(62, -104);
-    ctx.lineTo(78, -48);
-    ctx.lineTo(7, -40);
-    ctx.closePath();
-    ctx.fill();
+    ctx.fillStyle = "#d47b30";
+    ctx.fillRect(-9, -76, 18, 179);
+    ctx.fillStyle = "#7e350e";
+    for (let y = 15; y < 100; y += 16) ctx.fillRect(-9, y, 18, 5);
+    ctx.fillStyle = palette.ink;
+    const headWidth = index === 0 ? 108 : 142;
+    const headHeight = index === 0 ? 54 : 74;
+    ctx.fillRect(-headWidth / 2, -132, headWidth, headHeight);
+    ctx.fillStyle = "#6b7784";
+    ctx.fillRect(-headWidth / 2 + 7, -124, headWidth - 14, 9);
     ctx.restore();
   }
+  ctx.fillStyle = palette.ink;
   ctx.textAlign = "center";
   ctx.font = "900 57px Arial, sans-serif";
   ctx.fillText("DECK", w / 2, 385);

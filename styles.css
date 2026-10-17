@@ -956,12 +956,12 @@ body[data-theme="rugged"][data-presentation="three"] {
   background: radial-gradient(ellipse at top, #3b2b21, #171310);
 }
 
-/* Worn iron corners sit above the timber without intercepting deck taps. */
+/* Riveted gunmetal corners and forge embers never intercept deck taps. */
 body[data-theme="rugged"][data-presentation="three"] #tabletop {
   position: relative;
-  border: 3px solid #66503a;
+  border: 3px solid #59636d;
   border-radius: 9px;
-  box-shadow: 0 10px 24px #0008, 0 0 0 1px #17130f;
+  box-shadow: 0 10px 28px #000b, 0 0 0 1px #151a20, 0 0 24px #dc45002e;
 }
 body[data-theme="rugged"][data-presentation="three"] #tabletop::after {
   content: "";
@@ -969,18 +969,44 @@ body[data-theme="rugged"][data-presentation="three"] #tabletop::after {
   inset: 0;
   pointer-events: none;
   border-radius: 5px;
-  box-shadow: inset 0 0 38px 10px #0009, inset 0 0 0 1px #be946238;
+  box-shadow: inset 0 0 38px 10px #0009, inset 0 0 0 1px #e9662238;
   background:
-    radial-gradient(circle at 11px 11px, #b59e77 0 2px, #171717 3px 5px, transparent 6px),
-    radial-gradient(circle at calc(100% - 11px) 11px, #b59e77 0 2px, #171717 3px 5px, transparent 6px),
-    radial-gradient(circle at 11px calc(100% - 11px), #b59e77 0 2px, #171717 3px 5px, transparent 6px),
-    radial-gradient(circle at calc(100% - 11px) calc(100% - 11px), #b59e77 0 2px, #171717 3px 5px, transparent 6px),
-    linear-gradient(135deg, #37342f, #181918) left top / 44px 22px no-repeat,
-    linear-gradient(135deg, #37342f, #181918) left top / 22px 44px no-repeat,
-    linear-gradient(225deg, #37342f, #181918) right top / 44px 22px no-repeat,
-    linear-gradient(225deg, #37342f, #181918) right top / 22px 44px no-repeat,
-    linear-gradient(45deg, #37342f, #181918) left bottom / 44px 22px no-repeat,
-    linear-gradient(45deg, #37342f, #181918) left bottom / 22px 44px no-repeat,
-    linear-gradient(315deg, #37342f, #181918) right bottom / 44px 22px no-repeat,
-    linear-gradient(315deg, #37342f, #181918) right bottom / 22px 44px no-repeat;
+    radial-gradient(circle at 11px 11px, #a7b1bb 0 2px, #171717 3px 5px, transparent 6px),
+    radial-gradient(circle at calc(100% - 11px) 11px, #a7b1bb 0 2px, #171717 3px 5px, transparent 6px),
+    radial-gradient(circle at 11px calc(100% - 11px), #a7b1bb 0 2px, #171717 3px 5px, transparent 6px),
+    radial-gradient(circle at calc(100% - 11px) calc(100% - 11px), #a7b1bb 0 2px, #171717 3px 5px, transparent 6px),
+    linear-gradient(135deg, #515e69, #171e25) left top / 44px 22px no-repeat,
+    linear-gradient(135deg, #515e69, #171e25) left top / 22px 44px no-repeat,
+    linear-gradient(225deg, #515e69, #171e25) right top / 44px 22px no-repeat,
+    linear-gradient(225deg, #515e69, #171e25) right top / 22px 44px no-repeat,
+    linear-gradient(45deg, #515e69, #171e25) left bottom / 44px 22px no-repeat,
+    linear-gradient(45deg, #515e69, #171e25) left bottom / 22px 44px no-repeat,
+    linear-gradient(315deg, #515e69, #171e25) right bottom / 44px 22px no-repeat,
+    linear-gradient(315deg, #515e69, #171e25) right bottom / 22px 44px no-repeat;
+}
+
+body[data-theme="rugged"][data-presentation="three"] {
+  background: radial-gradient(ellipse at bottom, #45200f 0%, #121820 52%, #080b10 100%);
+  #round-title { text-shadow: 0 2px 0 #000, 0 0 20px #f8661755; }
+  .rep-summary-item { background: linear-gradient(140deg, #232d37, #0d1218); border-color: #6c4834; box-shadow: inset 0 1px #a2b2c522, 0 8px 18px #0006; }
+  #draw-button { background: linear-gradient(#ff8b20, #d93608); border: 1px solid #ffbe63; box-shadow: 0 0 24px #f65a003b, inset 0 1px #ffe1a5; letter-spacing: 0.08em; }
+  #tabletop::before {
+    content: "";
+    position: absolute;
+    inset: auto 0 0;
+    height: 32px;
+    pointer-events: none;
+    z-index: 3;
+    background: url("./assets/forge-fire.svg") left bottom / 260px 32px repeat-x;
+    filter: drop-shadow(0 -2px 6px #ff580888);
+    opacity: 0.85;
+  }
+  #tabletop::after { z-index: 2; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  body[data-theme="rugged"][data-presentation="three"] #tabletop::before { animation: forge-embers 2.8s ease-in-out infinite alternate; }
+}
+@keyframes forge-embers {
+  from { opacity: 0.65; }
+  to { opacity: 1; }
 }

@@ -88,9 +88,14 @@ test("reduced motion, eight card hand, context loss and responsive layout", asyn
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto("/");
+  await page.goto("/#theme=rugged");
   await page.click("#start-workout");
   await expect(page.locator("#tabletop canvas")).toBeVisible();
+  expect(
+    await page
+      .locator("#tabletop")
+      .evaluate((el) => getComputedStyle(el, "::before").animationName),
+  ).toBe("none");
   await page.evaluate(() => {
     deck = deck.slice(0, 8);
     drawCards();

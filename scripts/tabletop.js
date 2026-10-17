@@ -199,12 +199,14 @@ export function createTabletop({ container, dispatch, onFailure }) {
     }
     surfaceMaterial.bumpScale = theme === "rugged" ? 0.035 : 0;
     surfaceMaterial.roughness = palette.roughness;
+    surfaceMaterial.metalness = theme === "rugged" ? 0.4 : 0;
+    ambient.color.set(theme === "rugged" ? "#c2d6ef" : "#ffffff");
     surfaceMaterial.needsUpdate = true;
     light.color.set(palette.light);
     light.intensity = theme === "plain" ? 2 : 3;
-    ambient.intensity = theme === "rugged" ? 0.9 : theme === "plain" ? 1.25 : 2;
+    ambient.intensity = theme === "rugged" ? 1.2 : theme === "plain" ? 1.25 : 2;
     renderer.toneMappingExposure =
-      theme === "rugged" ? 1.05 : theme === "plain" ? 0.9 : 1.25;
+      theme === "rugged" ? 1.2 : theme === "plain" ? 0.9 : 1.25;
     scene.background = new THREE.Color(palette.surface);
     if (backMaterial) {
       backMaterial.map.dispose();

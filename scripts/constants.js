@@ -47,11 +47,11 @@ export const tabletopThemes = {
     roughness: 1,
   },
   rugged: {
-    surface: "#59402e",
-    grain: "#0f0d0a",
-    back: "#30231d",
-    ink: "#bc9365",
-    light: "#ffc17d",
-    roughness: 1,
+    surface: "#414b56",
+    grain: "#0b0e12",
+    back: "#111820",
+    ink: "#e2e6e8",
+    light: "#ffc794",
+    roughness: 0.72,
   },
 };
