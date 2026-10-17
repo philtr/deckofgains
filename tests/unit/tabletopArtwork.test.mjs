@@ -74,7 +74,7 @@ test("rugged steel includes deep wear and hammered relief without losing seamles
   );
 });
 
-test("rugged relief repeats seamlessly and steel backs use a crossed hammer and heavy maul with a readable stamp", () => {
+test("rugged relief repeats seamlessly and steel backs use a curved pick and the complete DECK of GAINS name", () => {
   const size = 64;
   const pixels = createRuggedReliefPixels(size);
   for (let i = 0; i < size; i++) {
@@ -91,14 +91,14 @@ test("rugged relief repeats seamlessly and steel backs use a crossed hammer and 
     );
   }
   const text = [];
-  const rectangles = [];
+  const curves = [];
   const ctx = new Proxy(
     {
       fillText(value) {
         text.push(value);
       },
-      fillRect(...args) {
-        rectangles.push(args);
+      quadraticCurveTo(...args) {
+        curves.push(args);
       },
     },
     {
@@ -108,18 +108,9 @@ test("rugged relief repeats seamlessly and steel backs use a crossed hammer and 
     },
   );
   drawCardBack(ctx, 384, 544, "rugged", { back: "#30231d", ink: "#bc9365" });
-  assert.ok(text.includes("DECK"));
-  assert.ok(text.includes("GAINS"));
-  const heads = rectangles.filter(
-    ([x, y, width, height]) => y < 0 && width >= 60 && height >= 40,
-  );
-  assert.equal(
-    heads.length,
-    2,
-    "both tools need solid hammer heads rather than axe blades",
-  );
+  assert.deepEqual(text, ["DECK", "of", "GAINS"]);
   assert.ok(
-    heads[1][2] > heads[0][2],
-    "the heavy maul should have a wider head",
+    curves.length > 0,
+    "the pick needs the curved, pointed head from the reference",
   );
 });

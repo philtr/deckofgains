@@ -174,7 +174,7 @@ export function drawCardBack(ctx, w, h, theme, palette) {
     ctx.strokeRect(28, 28, w - 56, h - 56);
     return;
   }
-  // Scorched gunmetal plate with rivets and crossed hammer/maul silhouettes.
+  // Scorched gunmetal plate with rivets and crossed hammer/pick silhouettes.
   for (let i = 0; i < 5000; i++) {
     const x = 20 + ((i * 73) % (w - 40)),
       y = 20 + ((i * 137) % (h - 40));
@@ -201,26 +201,54 @@ export function drawCardBack(ctx, w, h, theme, palette) {
       ctx.lineTo(x + 4, y);
       ctx.stroke();
     }
-  for (const [index, angle] of [-0.65, 0.65].entries()) {
-    ctx.save();
-    ctx.translate(w / 2, 203);
-    ctx.rotate(angle);
-    ctx.fillStyle = "#d47b30";
-    ctx.fillRect(-9, -76, 18, 179);
-    ctx.fillStyle = "#7e350e";
-    for (let y = 15; y < 100; y += 16) ctx.fillRect(-9, y, 18, 5);
-    ctx.fillStyle = palette.ink;
-    const headWidth = index === 0 ? 108 : 142;
-    const headHeight = index === 0 ? 54 : 74;
-    ctx.fillRect(-headWidth / 2, -132, headWidth, headHeight);
-    ctx.fillStyle = "#6b7784";
-    ctx.fillRect(-headWidth / 2 + 7, -124, headWidth - 14, 9);
-    ctx.restore();
-  }
+  // One-color silhouettes follow the reference: square hammer, curved pointed pick,
+  // and substantial crossed handles. Canvas paths avoid platform-specific emoji.
+  ctx.fillStyle = palette.ink;
+  ctx.save();
+  ctx.translate(w / 2, 194);
+  ctx.scale(1.1, 1.1);
+  ctx.save();
+  ctx.rotate(-Math.PI / 4);
+  ctx.beginPath();
+  ctx.moveTo(-53, -100);
+  ctx.lineTo(-10, -100);
+  ctx.lineTo(-10, -112);
+  ctx.lineTo(10, -112);
+  ctx.lineTo(10, -100);
+  ctx.lineTo(53, -100);
+  ctx.lineTo(53, -60);
+  ctx.lineTo(14, -60);
+  ctx.lineTo(14, 133);
+  ctx.lineTo(-14, 133);
+  ctx.lineTo(-14, -60);
+  ctx.lineTo(-53, -60);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+  ctx.rotate(Math.PI / 4);
+  ctx.beginPath();
+  ctx.moveTo(-53, -104);
+  ctx.lineTo(-12, -104);
+  ctx.lineTo(-12, -116);
+  ctx.lineTo(12, -116);
+  ctx.lineTo(12, -104);
+  ctx.lineTo(35, -96);
+  ctx.quadraticCurveTo(76, -97, 92, -60);
+  ctx.lineTo(43, -67);
+  ctx.lineTo(14, -60);
+  ctx.lineTo(14, 133);
+  ctx.lineTo(-14, 133);
+  ctx.lineTo(-14, -60);
+  ctx.lineTo(-53, -60);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
   ctx.fillStyle = palette.ink;
   ctx.textAlign = "center";
   ctx.font = "900 57px Arial, sans-serif";
-  ctx.fillText("DECK", w / 2, 385);
+  ctx.fillText("DECK", w / 2, 368);
+  ctx.font = "bold 38px Georgia, serif";
+  ctx.fillText("of", w / 2, 416);
   ctx.font = "900 65px Arial, sans-serif";
-  ctx.fillText("GAINS", w / 2, 458);
+  ctx.fillText("GAINS", w / 2, 480);
 }
