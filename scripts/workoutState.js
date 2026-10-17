@@ -1,3 +1,4 @@
+import { normalizeCards } from "./game.mjs";
 import {
   defaultMultipliers,
   defaultTheme,
@@ -26,12 +27,8 @@ const listeners = new Set();
 let suppressionDepth = 0;
 let pendingNotification = false;
 
-function cloneCard(card) {
-  return { suit: card.suit, number: Number(card.number) };
-}
-
 function cloneDeck(deck) {
-  return Array.isArray(deck) ? deck.map(cloneCard) : [];
+  return normalizeCards(deck);
 }
 
 function notify() {

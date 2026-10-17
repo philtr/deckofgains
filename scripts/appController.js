@@ -1,4 +1,10 @@
-import { readUrlState, buildStateUrl, migrateLegacyUrlState } from "./urlState.js";
+import { dispatchGame, workoutView } from "./gameRuntime.js";
+import { createPresentationController } from "./presentation.js";
+import {
+  readUrlState,
+  buildStateUrl,
+  migrateLegacyUrlState,
+} from "./urlState.js";
 import {
   suits,
   defaultMultipliers,
@@ -12,10 +18,6 @@ import {
   getState,
   replaceState,
   setDeck,
-  setLastDrawn,
-  setRoundCompleted,
-  setRoundNumber,
-  setStarted,
   subscribe,
   suppressNotifications,
   updateConfiguration,
@@ -41,6 +43,7 @@ import { createRoomSyncController } from "./roomSyncController.js";
 import {
   populateConfigurationForm as renderConfigurationForm,
   readAutoDrawIntervalFromInputs,
+  readConfigurationForm,
   renderWorkoutFromState as renderWorkoutView,
   showConfigurationScreen,
   updateAutoDrawIntervalVisibility,
@@ -84,6 +87,24 @@ const roomSyncController = createRoomSyncController({
   createRoomSync,
 });
 
+const presentation = createPresentationController({
+  dispatch: (command) => {
+    if (command.type === "DRAW") drawCards();
+  },
+});
+let roomPending = false;
+function setRoomPending(value) {
+  roomPending = value;
+  document.getElementById("start-workout").disabled = value;
+  document.getElementById("draw-button").disabled = value;
+  if (!value) autoDrawController.ensure(getState());
+}
+
+function setRoomStatus(message) {
+  const status = document.getElementById("room-status");
+  if (status) status.textContent = message;
+}
+
 function hasConfigurationParams(params) {
   if (!(params instanceof URLSearchParams)) {
     return false;
@@ -116,10 +137,18 @@ function requestRoomJoin() {
 }
 
 async function syncToRoom(roomCode) {
-  const remoteState = await roomSyncController.syncToRoom(
-    roomCode,
-    applyRemoteState,
-  );
+  if (roomCode) setRoomPending(true);
+  let remoteState;
+  setRoomStatus(roomCode ? "Connecting to group…" : "");
+  try {
+    remoteState = await roomSyncController.syncToRoom(
+      roomCode,
+      applyRemoteState,
+    );
+    setRoomStatus(roomCode ? "Group connection ready." : "");
+  } finally {
+    setRoomPending(false);
+  }
   if (remoteState) {
     applyRemoteState(remoteState);
   }
@@ -155,6 +184,9 @@ function applyRemoteState(remoteState) {
       renderWorkoutFromState(state);
     } else {
       showConfigurationScreen();
+      presentation.update(workoutView(state), {
+        theme: state.configuration.theme,
+      });
     }
     void Analytics.trackView(state.started ? "workout" : "setup");
     if (state.started && !previousState.started) {
@@ -227,6 +259,7 @@ function ensureConfigurationListeners() {
       }
       roomSyncController.updateRoomParam(null);
       roomSyncController.stopSession();
+      setRoomStatus("");
       if (roomInput) {
         roomInput.focus();
         roomInput.select();
@@ -330,14 +363,8 @@ function appendNewSetButton(instructionsDiv) {
       theme: state.configuration.theme,
       auto_draw: state.configuration.autoDraw.enabled,
     });
-    const nextState = {
-      configuration: state.configuration,
-      deck: buildDeck(),
-      roundNumber: 1,
-      roundCompleted: false,
-      started: false,
-      lastDrawn: [],
-    };
+    const nextState = dispatchGame({ type: "RESET" }).state;
+    nextState.configuration = state.configuration;
 
     if (roomCode) {
       roomSyncController.sendState(nextState);
@@ -363,7 +390,13 @@ export function updateRoundTitle() {
   });
 }
 
-function renderWorkoutFromState(state) {
+function renderWorkoutFromState(state, { animate = false, events = [] } = {}) {
+  const viewModel = workoutView(state);
+  presentation.update(viewModel, {
+    theme: state.configuration.theme,
+    animate,
+    events,
+  });
   renderWorkoutView({
     appendNewSetButton,
     calculateTotals,
@@ -387,14 +420,10 @@ function renderWorkoutFromState(state) {
     hasActiveCountdown: () => autoDrawController.hasActiveCountdown(),
     refreshDrawButtonLabel: () => autoDrawController.refreshDrawButtonLabel(),
     state,
+    viewModel,
     shouldShowFeedback: () => !hasSubmittedFeedback(),
     totalRounds,
   });
-}
-
-function serializeAndRenderState() {
-  const state = getState();
-  renderWorkoutFromState(state);
 }
 
 export function initializeDeck() {
@@ -403,59 +432,24 @@ export function initializeDeck() {
   return newDeck;
 }
 
+// Compatibility helper for existing integrations; rules remain in the engine.
 export function doDrawCards() {
-  let { deck } = getState();
-  if (deck.length === 0) {
-    deck = buildDeck();
-    setDeck(deck);
-  }
-
-  const state = getState();
-  const activeDeck = [...state.deck];
-  const configuration = state.configuration;
-  const cardCount = configuration.endless
-    ? Math.min(4, activeDeck.length)
-    : activeDeck.length <= 8
-      ? activeDeck.length
-      : 4;
-
-  const drawnCards = [];
-  for (let i = 0; i < cardCount; i += 1) {
-    if (activeDeck.length === 0) {
-      break;
-    }
-    const index = Math.floor(Math.random() * activeDeck.length);
-    const [card] = activeDeck.splice(index, 1);
-    if (card) {
-      drawnCards.push(card);
-    }
-  }
-
-  setDeck(activeDeck);
-  setLastDrawn(drawnCards);
-
-  return drawnCards;
+  const result = dispatchGame({ type: "DRAW" });
+  return result.events[0]?.cards ?? [];
 }
 
 export function drawCards({ trigger = "manual" } = {}) {
-  updateRoundTitle();
-
-  let drawnCards = [];
-  let stateBeforeDraw;
-  suppressNotifications(() => {
-    stateBeforeDraw = getState();
-    drawnCards = doDrawCards();
-    const newRoundNumber = stateBeforeDraw.roundNumber + 1;
-    setRoundCompleted(true);
-    setRoundNumber(newRoundNumber);
-    playDrawSound({ count: drawnCards.length });
-  });
+  if (roomPending) return;
+  const stateBeforeDraw = getState();
+  const { events } = dispatchGame({ type: "DRAW" });
+  const drawnCards = events.find((event) => event.type === "HAND_DRAWN")?.cards;
+  if (!drawnCards) return;
+  playDrawSound({ count: drawnCards.length });
 
   const stateAfterDraw = getState();
   const totals = calculateTotals(drawnCards, stateBeforeDraw.configuration);
   const repTotal = Object.values(totals).reduce((sum, value) => sum + value, 0);
-  const finalDraw =
-    !stateBeforeDraw.configuration.endless && stateAfterDraw.deck.length === 0;
+  const finalDraw = events.some((event) => event.type === "WORKOUT_COMPLETED");
 
   void Analytics.roundDrawn({
     round: stateBeforeDraw.roundNumber,
@@ -475,11 +469,12 @@ export function drawCards({ trigger = "manual" } = {}) {
     });
   }
 
-  serializeAndRenderState();
+  renderWorkoutFromState(getState(), { animate: true, events });
   autoDrawController.schedule(getState());
 }
 
 export async function startWorkout() {
+  if (roomPending) return;
   const roomCode = roomSyncController.getRoomInputValue();
 
   if (roomSyncController.isEnabled()) {
@@ -489,74 +484,17 @@ export async function startWorkout() {
       return;
     }
   }
-  const stateSnapshot = getState();
-  const multipliers = { ...defaultMultipliers };
-  suits.forEach((suit) => {
-    const select = document.getElementById(`multiplier-${suit}`);
-    if (select) {
-      const value = Number.parseInt(select.value, 10);
-      multipliers[suit] = Number.isFinite(value)
-        ? value
-        : defaultMultipliers[suit];
-    }
-  });
-
-  const selectedThemeInput = document.querySelector(
-    'input[name="theme"]:checked',
+  if (roomPending) return;
+  const { multipliers, theme, endless, autoDraw } = readConfigurationForm(
+    getState().configuration,
   );
-  const themeCandidate = selectedThemeInput
-    ? selectedThemeInput.value
-    : stateSnapshot.configuration.theme;
-  const theme = applyTheme(themeCandidate);
-
-  const endlessToggle = document.getElementById("endless-mode");
-  const endless = endlessToggle
-    ? endlessToggle.checked
-    : stateSnapshot.configuration.endless;
-  const autoDrawToggle = document.getElementById("auto-draw-enabled");
-  const autoDrawMinutesInput = document.getElementById("auto-draw-minutes");
-  const autoDrawSecondsInput = document.getElementById("auto-draw-seconds");
-
-  const minutesValue = autoDrawMinutesInput
-    ? Number.parseInt(autoDrawMinutesInput.value, 10)
-    : NaN;
-  const secondsValue = autoDrawSecondsInput
-    ? Number.parseInt(autoDrawSecondsInput.value, 10)
-    : NaN;
-  const normalizedMinutes =
-    Number.isFinite(minutesValue) && minutesValue >= 0 ? minutesValue : 0;
-  const normalizedSeconds =
-    Number.isFinite(secondsValue) && secondsValue >= 0
-      ? Math.min(secondsValue, 59)
-      : 0;
-  const computedIntervalSeconds = normalizedMinutes * 60 + normalizedSeconds;
-  const fallbackIntervalSeconds =
-    stateSnapshot.configuration.autoDraw.intervalSeconds ??
-    defaultAutoDrawIntervalSeconds;
-  const intervalSeconds =
-    computedIntervalSeconds > 0
-      ? computedIntervalSeconds
-      : fallbackIntervalSeconds;
-
+  applyTheme(theme);
+  const autoDrawEnabled = autoDraw.enabled;
+  const intervalSeconds = autoDraw.intervalSeconds;
   autoDrawController.clear();
-
-  const autoDrawEnabled = autoDrawToggle
-    ? autoDrawToggle.checked
-    : stateSnapshot.configuration.autoDraw.enabled;
-
   suppressNotifications(() => {
-    updateConfiguration({ multipliers, theme, endless });
-    setDeck(buildDeck());
-    setRoundNumber(1);
-    setRoundCompleted(false);
-    setLastDrawn([]);
-    setStarted(true);
-    updateConfiguration({
-      autoDraw: {
-        enabled: autoDrawEnabled,
-        intervalSeconds,
-      },
-    });
+    updateConfiguration({ multipliers, theme, endless, autoDraw });
+    dispatchGame({ type: "START" });
   });
 
   void Analytics.trackView("workout");
@@ -605,6 +543,9 @@ function handleRestoredState(restored) {
     autoDrawController.ensure(getState());
   } else {
     showConfigurationScreen();
+    presentation.update(workoutView(getState()), {
+      theme: getState().configuration.theme,
+    });
   }
 
   const restoredState = getState();
@@ -634,7 +575,7 @@ export async function initializeApp() {
     sourceConfiguration: persisted.configuration,
     derivedTheme,
   });
-  let initialState = {
+  const initialState = {
     ...persisted,
     configuration,
   };
@@ -642,21 +583,35 @@ export async function initializeApp() {
   // Theme the first render before waiting on optional group-sync networking.
   applyTheme(configuration.theme);
 
-  const syncEnabled = await checkSyncHealth();
-  roomSyncController.setEnabled(syncEnabled);
-  roomSyncController.setControlsEnabled(syncEnabled);
-
-  let remoteState = null;
-  if (roomCode && syncEnabled) {
-    const syncResult = await roomSyncController.ensureSession(
-      roomCode,
-      applyRemoteState,
-    );
-    remoteState = syncResult.remoteState;
-    if (remoteState) {
-      initialState = remoteState;
-    }
-  }
+  presentation.mount();
+  const groupControls = document.getElementById("group-join");
+  groupControls.disabled = true;
+  const roomStatus = document.createElement("p");
+  roomStatus.id = "room-status";
+  roomStatus.className = "presentation-notice";
+  roomStatus.setAttribute("role", "status");
+  groupControls.after(roomStatus);
+  if (roomCode) setRoomStatus("Connecting to group…");
+  if (roomCode) setRoomPending(true);
+  void checkSyncHealth()
+    .then(async (syncEnabled) => {
+      roomSyncController.setEnabled(syncEnabled);
+      roomSyncController.setControlsEnabled(syncEnabled);
+      groupControls.disabled = !syncEnabled;
+      if (!syncEnabled && roomCode)
+        setRoomStatus(
+          "Group connection unavailable. You can continue locally.",
+        );
+      if (roomCode && syncEnabled) {
+        const { remoteState } = await roomSyncController.ensureSession(
+          roomCode,
+          applyRemoteState,
+        );
+        if (remoteState) applyRemoteState(remoteState);
+        setRoomStatus("Group connection ready.");
+      }
+    })
+    .finally(() => setRoomPending(false));
 
   replaceState(initialState, { silent: true });
 
@@ -677,7 +632,7 @@ export async function initializeApp() {
   void Analytics.trackView(stateSnapshot.started ? "workout" : "setup");
   if (stateSnapshot.started) {
     void Analytics.workoutResumed({
-      source: remoteState ? "room" : "url",
+      source: "url",
       round: stateSnapshot.roundNumber,
       theme: stateSnapshot.configuration.theme,
       mode: getAnalyticsMode(stateSnapshot.configuration),
@@ -685,19 +640,18 @@ export async function initializeApp() {
     });
   }
 
-  const remainingSeconds = remoteState
-    ? null
-    : persisted.autoDrawRemainingSeconds;
+  const remainingSeconds = persisted.autoDrawRemainingSeconds;
   autoDrawController.ensure(stateSnapshot, { remainingSeconds });
-  if (roomCode && syncEnabled) {
-    roomSyncController.rememberSyncedState(stateSnapshot);
-  }
 
   subscribe((state) => {
     persistState(state);
     autoDrawController.ensure(state);
     persistConfigurationIfChanged(state.configuration);
     sendStateToSync(state);
+    if (!state.started)
+      presentation.update(workoutView(state), {
+        theme: state.configuration.theme,
+      });
   });
 
   subscribeToPopState((restored) => {

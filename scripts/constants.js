@@ -1,9 +1,5 @@
-export const exercises = {
-  hearts: "Jumping Jacks",
-  spades: "Squats",
-  diamonds: "Pushups",
-  clubs: "Abs",
-};
+export { exercises, suits, defaultMultipliers, totalRounds } from "./game.mjs";
+import { suits } from "./game.mjs";
 
 export const suitSymbols = {
   hearts: "♥️",
@@ -11,8 +7,6 @@ export const suitSymbols = {
   diamonds: "♦️",
   clubs: "♣️",
 };
-
-export const suits = ["hearts", "spades", "diamonds", "clubs"];
 
 export const suitCodes = {
   hearts: "h",
@@ -27,17 +21,37 @@ export const suitLookupByCode = Object.freeze(
   ),
 );
 
-export const defaultMultipliers = {
-  hearts: 1,
-  spades: 1,
-  diamonds: 1,
-  clubs: 2,
-};
-
 export const defaultTheme = "casino";
 
 export const supportedThemes = new Set([defaultTheme, "plain", "rugged"]);
 
-export const totalRounds = 12;
-
 export const defaultAutoDrawIntervalSeconds = 150;
+
+export const presentationModes = ["three", "classic"];
+export const defaultPresentation = "three";
+export const tabletopThemes = {
+  casino: {
+    surface: "#154e3e",
+    grain: "#25705a",
+    back: "#193c65",
+    ink: "#c9ad6d",
+    light: "#ffedd1",
+    roughness: 0.95,
+  },
+  plain: {
+    surface: "#e5e1d8",
+    grain: "#d4cfc2",
+    back: "#49596a",
+    ink: "#e6e8eb",
+    light: "#ffffff",
+    roughness: 1,
+  },
+  rugged: {
+    surface: "#493124",
+    grain: "#211b17",
+    back: "#6a3322",
+    ink: "#e9b56a",
+    light: "#ffcf94",
+    roughness: 0.9,
+  },
+};

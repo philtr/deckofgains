@@ -1,4 +1,10 @@
-import { exercises } from "./constants.js";
+import {
+  exercises,
+  defaultMultipliers,
+  defaultAutoDrawIntervalSeconds,
+  suits,
+} from "./constants.js";
+import { selectWorkoutView } from "./game.mjs";
 
 function getAutoDrawIntervalElements() {
   return {
@@ -158,24 +164,18 @@ export function updateRoundTitle({ state, totalRounds }) {
     return;
   }
 
-  const activeRoundNumber = state.roundCompleted
-    ? Math.max(1, state.roundNumber - 1)
-    : state.roundNumber;
-  const baseRoundLabel = `Round ${activeRoundNumber}`;
-  roundTitle.textContent = state.configuration.endless
-    ? baseRoundLabel
-    : `${baseRoundLabel} of ${totalRounds}`;
+  roundTitle.textContent = selectWorkoutView(state).roundLabel;
 }
 
 export function renderWorkoutFromState({
   appendNewSetButton,
-  calculateTotals,
   createFeedbackPrompt,
   createCardElement,
   drawButtonDefaultLabel,
   hasActiveCountdown,
   refreshDrawButtonLabel,
   state,
+  viewModel = selectWorkoutView(state),
   shouldShowFeedback,
   totalRounds,
 }) {
@@ -197,7 +197,7 @@ export function renderWorkoutFromState({
     instructionsDiv.textContent = "";
   }
 
-  const cards = state.lastDrawn;
+  const cards = viewModel.cards;
   if (drawnCardsDiv && cards.length > 0) {
     cards.forEach((card, index) => {
       const cardElement = createCardElement(card);
@@ -211,17 +211,13 @@ export function renderWorkoutFromState({
   }
 
   if (repSummaryDiv && cards.length > 0) {
-    const totals = calculateTotals(cards, state.configuration);
+    const totals = viewModel.totals;
     renderTotalsParagraphs(repSummaryDiv, totals);
   }
 
-  const deckLength = state.deck.length;
   if (instructionsDiv) {
-    if (!state.configuration.endless && deckLength === 0 && cards.length > 0) {
-      appendSprintInstruction(
-        instructionsDiv,
-        "Complete 2 sprints of 50 yards each.",
-      );
+    if (viewModel.complete && cards.length > 0) {
+      appendSprintInstruction(instructionsDiv, viewModel.instructions);
       if (shouldShowFeedback()) {
         const feedbackPrompt = createFeedbackPrompt({
           onDismiss: () => {
@@ -237,7 +233,7 @@ export function renderWorkoutFromState({
   }
 
   if (drawButton) {
-    if (!state.configuration.endless && deckLength === 0) {
+    if (!viewModel.canDraw) {
       drawButton.style.display = "none";
     } else {
       drawButton.style.display = "";
@@ -249,4 +245,33 @@ export function renderWorkoutFromState({
       refreshDrawButtonLabel();
     }
   }
+}
+
+export function readConfigurationForm(fallback) {
+  const multipliers = Object.fromEntries(
+    suits.map((suit) => [
+      suit,
+      Number.parseInt(
+        document.getElementById(`multiplier-${suit}`)?.value,
+        10,
+      ) || defaultMultipliers[suit],
+    ]),
+  );
+  return {
+    multipliers,
+    theme:
+      document.querySelector('input[name="theme"]:checked')?.value ??
+      fallback.theme,
+    endless:
+      document.getElementById("endless-mode")?.checked ?? fallback.endless,
+    autoDraw: {
+      enabled:
+        document.getElementById("auto-draw-enabled")?.checked ??
+        fallback.autoDraw.enabled,
+      intervalSeconds:
+        readAutoDrawIntervalFromInputs() ??
+        fallback.autoDraw.intervalSeconds ??
+        defaultAutoDrawIntervalSeconds,
+    },
+  };
 }

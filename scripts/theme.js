@@ -34,3 +34,5 @@ export function applyTheme(themeCandidate) {
   document.body.dataset.theme = theme;
   return theme;
 }
+
+export { tabletopThemes } from "./constants.js";

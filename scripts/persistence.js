@@ -1,4 +1,8 @@
-import { readUrlState, buildStateUrl, migrateLegacyUrlState } from "./urlState.js";
+import {
+  readUrlState,
+  buildStateUrl,
+  migrateLegacyUrlState,
+} from "./urlState.js";
 import {
   suits,
   defaultMultipliers,
@@ -7,6 +11,7 @@ import {
   defaultAutoDrawIntervalSeconds,
 } from "./constants.js";
 import { normalizeConfiguration } from "./configuration.js";
+import { deriveInitialTheme } from "./theme.js";
 
 const CARD_SEPARATOR = ".";
 const MULTIPLIER_SEPARATOR = ".";
@@ -233,7 +238,7 @@ export function deserializeState(searchParams) {
 
   const autoDrawRemainingSeconds = resolveRemainingSecondsFromParams(params);
   const configuration = normalizeConfiguration({
-    theme: params.get("theme"),
+    theme: deriveInitialTheme(params),
     endless: params.get("endless") === "1",
     multipliers:
       decodeMultipliers(params.get("multipliers")) ?? defaultMultipliers,

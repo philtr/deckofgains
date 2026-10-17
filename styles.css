@@ -879,3 +879,79 @@ body[data-theme="rugged"] {
     color: rgba(255, 255, 255, 0.8);
   }
 }
+
+/* Presentation controls share explicit theme tokens with the HTML workout UI. */
+body[data-theme="casino"] { --view-surface: #103e32; --view-text: #fff4d5; --view-border: #c9ad6d; }
+body[data-theme="plain"] { --view-surface: #ffffff; --view-text: #1f2933; --view-border: #65758a; }
+body[data-theme="rugged"] { --view-surface: #2e241f; --view-text: #ffe3b7; --view-border: #d18c48; }
+.presentation-choice {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.9rem;
+  color: var(--view-text);
+}
+.presentation-choice select {
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid var(--view-border);
+  border-radius: 8px;
+  background: var(--view-surface);
+  color: var(--view-text);
+  font: inherit;
+}
+.presentation-notice {
+  color: var(--view-text);
+  margin: 0;
+  max-width: 42rem;
+  text-align: center;
+}
+.presentation-notice:empty { display: none; }
+#tabletop { display: none; }
+body[data-presentation="three"] {
+  #tabletop {
+    display: block;
+    width: 100%;
+    height: clamp(320px, 58vh, 600px);
+    border-radius: 16px;
+    overflow: hidden;
+    border: 1px solid var(--view-border);
+    box-sizing: border-box;
+    background: var(--view-surface);
+    canvas { display: block; width: 100%; height: 100%; cursor: pointer; }
+  }
+  #workout-grid { display: flex; flex-direction: column; gap: 20px; }
+  #drawn-cards { display: none; }
+  #rep-summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .rep-summary-item { min-width: 0; padding: 16px; aspect-ratio: auto; }
+  .rep-summary-count { font-size: clamp(2rem, 7vw, 4rem); }
+  .rep-summary-exercise { font-size: clamp(0.9rem, 2vw, 1.2rem); }
+}
+:where(button, select, input, textarea, a):focus-visible {
+  outline: 3px solid var(--view-border);
+  outline-offset: 4px;
+}
+@media (min-width: 900px) and (orientation: landscape) {
+  body[data-presentation="three"] {
+    #workout-grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(240px, 1fr); align-items: center; }
+    #tabletop { height: clamp(380px, 65vh, 640px); }
+  }
+}
+@media (max-width: 500px) {
+  #configuration-screen { box-sizing: border-box; padding: 20px 16px; }
+  .presentation-choice { justify-content: center; }
+  body[data-presentation="three"] #tabletop { height: 440px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
+body[data-theme="casino"][data-presentation="three"] {
+  background: radial-gradient(ellipse at top, #1b4b3d, #071c17);
+}
+body[data-theme="plain"][data-presentation="three"] {
+  background: #eae7e1;
+}
+body[data-theme="rugged"][data-presentation="three"] {
+  background: radial-gradient(ellipse at top, #3b2b21, #171310);
+}
