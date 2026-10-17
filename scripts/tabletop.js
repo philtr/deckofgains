@@ -1,3 +1,4 @@
+import { sampleForgeFire } from "./forgeFire.mjs";
 import * as THREE from "three";
 import { tabletopThemes } from "./theme.js";
 import {
@@ -70,6 +71,12 @@ export function createTabletop({ container, dispatch, onFailure }) {
   light.shadow.normalBias = 0.025;
   light.shadow.radius = 3;
   scene.add(light);
+  // Two inexpensive, unshadowed sources provide actual warm light on cards and steel.
+  const fireLights = [
+    new THREE.PointLight("#ff620e", 0, 18, 2),
+    new THREE.PointLight("#ff9a2e", 0, 18, 2),
+  ];
+  fireLights.forEach((source) => scene.add(source));
 
   const ownedTextures = new Set();
   const ownedMaterials = new Set();
@@ -114,6 +121,7 @@ export function createTabletop({ container, dispatch, onFailure }) {
   let deckMeshes = [];
   let discardMeshes = [];
   let frame = 0;
+  let fireTimeout = null;
   let disposed = false;
   let model;
   let animationStart = null;
@@ -140,16 +148,27 @@ export function createTabletop({ container, dispatch, onFailure }) {
     return group;
   }
   function faceFor(card) {
-    const key = `${card.suit}-${card.number}`;
+    const key = `${theme}-${card.suit}-${card.number}`;
     if (faceMaterials.has(key)) return faceMaterials.get(key);
     const texture = ownTexture(
       canvasTexture((ctx, w, h) => drawCardFace(ctx, w, h, card)),
     );
     texture.anisotropy = Math.min(renderer.capabilities.getMaxAnisotropy(), 8);
-    const mat = material(
-      { map: texture, toneMapped: false },
-      THREE.MeshBasicMaterial,
-    );
+    // Rugged faces respond to fire; a texture-matched emissive base keeps ink legible.
+    const mat =
+      theme === "rugged"
+        ? material({
+            map: texture,
+            roughness: 0.85,
+            color: 0x999999,
+            emissive: 0xffffff,
+            emissiveMap: texture,
+            emissiveIntensity: 0.55,
+          })
+        : material(
+            { map: texture, toneMapped: false },
+            THREE.MeshBasicMaterial,
+          );
     faceMaterials.set(key, mat);
     return mat;
   }
@@ -294,11 +313,49 @@ export function createTabletop({ container, dispatch, onFailure }) {
       );
     });
   }
+  function cancelRender() {
+    cancelAnimationFrame(frame);
+    frame = 0;
+    if (fireTimeout !== null) clearTimeout(fireTimeout);
+    fireTimeout = null;
+  }
+  function fireActive() {
+    return (
+      theme === "rugged" &&
+      !reducedMotion.matches &&
+      !document.hidden &&
+      !disposed
+    );
+  }
+  function updateFire(now) {
+    const active = fireActive();
+    container.dataset.fireActive = String(active);
+    const fire = sampleForgeFire(active ? now / 1000 : 0);
+    container.style.setProperty("--forge-fire-opacity", String(fire.opacity));
+    container.style.setProperty(
+      "--forge-fire-scale",
+      String(active ? fire.scale : 1),
+    );
+    container.style.setProperty(
+      "--forge-fire-drift",
+      `${active ? fire.drift : 0}px`,
+    );
+    const frontRow = Math.max(
+      1.2,
+      ...cards.map((card) => card.userData.target.z),
+    );
+    fireLights.forEach((source, index) => {
+      source.visible = theme === "rugged";
+      source.position.set(index ? 2.2 : -2.2, 1.9, frontRow + 2);
+      source.intensity = 85 * (index ? fire.right : fire.left);
+    });
+  }
   function render(now) {
     frame = 0;
     if (disposed || document.hidden) return;
     const elapsed = animationStart === null ? 2 : (now - animationStart) / 1000;
     pose(elapsed);
+    updateFire(now);
     renderer.render(scene, camera);
     const active =
       animationStart !== null &&
@@ -306,17 +363,25 @@ export function createTabletop({ container, dispatch, onFailure }) {
       !reducedMotion.matches;
     container.dataset.animating = String(active);
     if (active) frame = requestAnimationFrame(render);
-    else animationStart = null;
+    else {
+      animationStart = null;
+      if (fireActive())
+        fireTimeout = setTimeout(() => {
+          fireTimeout = null;
+          requestRender();
+        }, 1000 / 30);
+    }
   }
   function requestRender() {
+    if (fireTimeout !== null) clearTimeout(fireTimeout);
+    fireTimeout = null;
     if (!frame && !disposed && !document.hidden)
       frame = requestAnimationFrame(render);
   }
   function update(next, { theme: nextTheme = "casino", animate = false } = {}) {
     if (disposed) return;
     model = next;
-    cancelAnimationFrame(frame);
-    frame = 0;
+    cancelRender();
     applyTheme(nextTheme);
     clearObjects();
     for (let i = 0; i < Math.ceil(model.remainingCards / 4); i++) {
@@ -354,14 +419,15 @@ export function createTabletop({ container, dispatch, onFailure }) {
     onFailure();
   }
   function visibility() {
-    cancelAnimationFrame(frame);
-    frame = 0;
+    cancelRender();
+    container.dataset.fireActive = String(fireActive());
     if (!document.hidden) {
       animationStart = null;
       requestRender();
     }
   }
   function motionChanged() {
+    cancelRender();
     animationStart = null;
     requestRender();
   }
@@ -376,7 +442,14 @@ export function createTabletop({ container, dispatch, onFailure }) {
     dispose() {
       if (disposed) return;
       disposed = true;
-      cancelAnimationFrame(frame);
+      cancelRender();
+      container.dataset.fireActive = "false";
+      for (const property of [
+        "--forge-fire-opacity",
+        "--forge-fire-scale",
+        "--forge-fire-drift",
+      ])
+        container.style.removeProperty(property);
       observer.disconnect();
       document.removeEventListener("visibilitychange", visibility);
       reducedMotion.removeEventListener("change", motionChanged);

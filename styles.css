@@ -997,16 +997,11 @@ body[data-theme="rugged"][data-presentation="three"] {
     height: 32px;
     pointer-events: none;
     z-index: 3;
-    background: url("./assets/forge-fire.svg") left bottom / 260px 32px repeat-x;
+    background: url("./assets/forge-fire.svg") var(--forge-fire-drift, 0px) bottom / 260px 32px repeat-x;
+    transform: scaleY(var(--forge-fire-scale, 1));
+    transform-origin: bottom;
     filter: drop-shadow(0 -2px 6px #ff580888);
-    opacity: 0.85;
+    opacity: var(--forge-fire-opacity, 0.85);
   }
   #tabletop::after { z-index: 2; }
-}
-@media (prefers-reduced-motion: no-preference) {
-  body[data-theme="rugged"][data-presentation="three"] #tabletop::before { animation: forge-embers 2.8s ease-in-out infinite alternate; }
-}
-@keyframes forge-embers {
-  from { opacity: 0.65; }
-  to { opacity: 1; }
 }

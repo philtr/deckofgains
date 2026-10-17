@@ -330,3 +330,95 @@ test("legacy theme aliases and minute intervals survive migration", async ({
   await expect(page.locator("#auto-draw-minutes")).toHaveValue("1");
   await expect(page.locator("#auto-draw-seconds")).toHaveValue("30");
 });
+
+test("rugged fire flickers on card faces and stops for reduced motion, hidden pages, and Classic", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1366, height: 900 });
+  await page.addInitScript(() => {
+    window.__renderFrames = 0;
+    const original = window.requestAnimationFrame;
+    window.requestAnimationFrame = (callback) =>
+      original((time) => {
+        window.__renderFrames++;
+        callback(time);
+      });
+  });
+  await page.goto("/#theme=rugged");
+  await page.click("#start-workout");
+  await expect(page.locator("#tabletop canvas")).toBeVisible();
+  await page.click("#draw-button");
+  await expect(page.locator("#tabletop")).toHaveAttribute(
+    "data-animating",
+    "false",
+  );
+  await expect(page.locator("#tabletop")).toHaveAttribute(
+    "data-fire-active",
+    "true",
+  );
+  const state = await page.evaluate(() => ({
+    deck,
+    lastDrawn,
+    roundNumber,
+    hash: location.hash,
+  }));
+  const bounds = await page.locator("#tabletop canvas").boundingBox();
+  // A blank portion of the lower-left card face: only scene lighting changes here.
+  const clip = {
+    x: bounds.x + bounds.width * 0.43,
+    y: bounds.y + bounds.height * 0.57,
+    width: 8,
+    height: 8,
+  };
+  const before = await page.screenshot({ clip });
+  await page.waitForTimeout(240);
+  const after = await page.screenshot({ clip });
+  expect(before.equals(after)).toBe(false);
+  expect(
+    await page.evaluate(() => ({
+      deck,
+      lastDrawn,
+      roundNumber,
+      hash: location.hash,
+    })),
+  ).toEqual(state);
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await expect(page.locator("#tabletop")).toHaveAttribute(
+    "data-fire-active",
+    "false",
+  );
+  const staticFrame = await page.screenshot({ clip });
+  await page.waitForTimeout(150);
+  expect((await page.screenshot({ clip })).equals(staticFrame)).toBe(true);
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await expect(page.locator("#tabletop")).toHaveAttribute(
+    "data-fire-active",
+    "true",
+  );
+  await page.evaluate(() => {
+    Object.defineProperty(document, "hidden", {
+      configurable: true,
+      get: () => true,
+    });
+    document.dispatchEvent(new Event("visibilitychange"));
+  });
+  await expect(page.locator("#tabletop")).toHaveAttribute(
+    "data-fire-active",
+    "false",
+  );
+  const hiddenFrames = await page.evaluate(() => window.__renderFrames);
+  await page.waitForTimeout(150);
+  expect(await page.evaluate(() => window.__renderFrames)).toBe(hiddenFrames);
+  await page.evaluate(() => {
+    delete document.hidden;
+    document.dispatchEvent(new Event("visibilitychange"));
+  });
+  await expect(page.locator("#tabletop")).toHaveAttribute(
+    "data-fire-active",
+    "true",
+  );
+  await page.locator("#app [data-presentation-select]").selectOption("classic");
+  const classicFrames = await page.evaluate(() => window.__renderFrames);
+  await page.waitForTimeout(150);
+  expect(await page.evaluate(() => window.__renderFrames)).toBe(classicFrames);
+});
